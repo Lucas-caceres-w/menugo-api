@@ -6,6 +6,7 @@ use App\Models\Local;
 use App\Models\Pedidos;
 use App\Models\Productos;
 use App\Services\MercadoPagoServices;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
 use Throwable;
 
@@ -14,25 +15,36 @@ class PedidosController extends Controller
     /**
      * Listar pedidos (ADMIN del local)
      */
-    public function index(Request $request, $localId)
+    public function index(Request $request, int $localId)
     {
         try {
+            $user = $request->user();
+
+            // Verificar que el local pertenezca al usuario
             $local = Local::where('id', $localId)
-                ->where('user_id', $request->user()->id)
+                ->where('user_id', $user->id)
                 ->firstOrFail();
 
-            $pedidos = $local->pedidos()
+            $pedidos = Pedidos::where('local_id', $local->id)
                 ->with('items')
                 ->orderByDesc('created_at')
                 ->get();
+            // Paginación
 
             return response()->json($pedidos, 200);
+        } catch (ModelNotFoundException $e) {
+            return response()->json([
+                'message' => 'Local no encontrado o sin permisos',
+            ], 403);
         } catch (Throwable $e) {
+            report($e);
+
             return response()->json([
                 'message' => 'No se pudieron obtener los pedidos',
             ], 500);
         }
     }
+
 
     /**
      * Crear pedido (CLIENTE)
@@ -175,7 +187,13 @@ class PedidosController extends Controller
             // Admin del local
             $pedido = Pedidos::where('id', $pedidoId)->with('items')->with('local')->get();
 
-            // Cliente (link público o token cliente)
+            if (!isset($pedido)) {
+                return response()->json(
+                    null,
+                    204
+                );
+            }
+
             return response()->json(
                 $pedido,
                 200

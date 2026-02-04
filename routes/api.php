@@ -65,7 +65,7 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::delete('/productos/{productoId}', [ProductosController::class, 'destroy']);
 
             // Pedidos (para locales, ver todos los pedidos recibidos)
-            Route::get('/pedidos', [PedidosController::class, 'index']);
+            Route::get('/pedidos/admin/{localId}', [PedidosController::class, 'index']);
             Route::put('/pedidos/{pedidoId}/estado', [PedidosController::class, 'cambiarEstado']); // pendiente, aprobado, cancelado, pagado
 
             // Transacciones / Facturación
