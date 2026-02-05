@@ -94,16 +94,19 @@ class Local extends Model
             ];
         }
 
-        // 5️⃣ Construir fechas reales
-        $opens = $now->copy()->setTimeFromTimeString($schedule->opens_at);
-        $closes = $now->copy()->setTimeFromTimeString($schedule->closes_at);
+        $nowTime = $now->format('H:i:s');
+        $opens   = $schedule->opens_at;
+        $closes  = $schedule->closes_at;
 
-        // Si cruza medianoche, el cierre es mañana
-        if ($opens->gte($closes)) {
-            $closes->addDay();
+        if ($opens === $closes) {
+            $isOpen = true; // 24hs
+        } elseif ($opens < $closes) {
+            // NO cruza medianoche
+            $isOpen = $nowTime >= $opens && $nowTime < $closes;
+        } else {
+            // Cruza medianoche
+            $isOpen = $nowTime >= $opens || $nowTime < $closes;
         }
-
-        $isOpen = $now->between($opens, $closes);
 
         if (!$isOpen) {
             return [
