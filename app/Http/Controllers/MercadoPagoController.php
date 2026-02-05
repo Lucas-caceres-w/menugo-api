@@ -150,7 +150,7 @@ class MercadoPagoController extends Controller
                     'client_id'     => env('MP_CLIENT_ID'),
                     'client_secret' => env('MP_CLIENT_SECRET'),
                     'code'          => $code,
-                    'grant_type'    => 'client_credentials',
+                    'grant_type'    => 'authorization_code',
                     'redirect_uri'  => env('MP_REDIRECT_URI'),
                 ]
             );
