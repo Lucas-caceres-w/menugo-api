@@ -51,13 +51,12 @@ class Local extends Model
     }
     public function todaySchedule()
     {
-        $today = Carbon::now();
-        $dayOfWeek = $today->dayOfWeek;
-        $now = $today->format('H:i');
+        $now = Carbon::now();
+        $dayOfWeek = $now->dayOfWeek;
 
-        // 1️⃣ Closure explícito del día (prioridad máxima)
+        // 1️⃣ Closure explícito del día
         $closure = $this->closures()
-            ->whereDate('date', $today->toDateString())
+            ->whereDate('date', $now->toDateString())
             ->first();
 
         if ($closure) {
@@ -73,7 +72,7 @@ class Local extends Model
             ->where('day_of_week', $dayOfWeek)
             ->first();
 
-        // 3️⃣ Día marcado como cerrado en el schedule
+        // 3️⃣ Día cerrado manualmente
         if ($schedule && (bool) $schedule->is_closed) {
             return [
                 'open' => false,
@@ -82,7 +81,7 @@ class Local extends Model
             ];
         }
 
-        // 4️⃣ No hay horario configurado
+        // 4️⃣ No hay horario
         if (
             !$schedule ||
             !$schedule->opens_at ||
@@ -95,17 +94,16 @@ class Local extends Model
             ];
         }
 
-        $opens = Carbon::createFromFormat('H:i', $schedule->opens_at);
-        $closes = Carbon::createFromFormat('H:i', $schedule->closes_at);
-        $nowTime = Carbon::now();
+        // 5️⃣ Construir fechas reales
+        $opens = $now->copy()->setTimeFromTimeString($schedule->opens_at);
+        $closes = $now->copy()->setTimeFromTimeString($schedule->closes_at);
 
-        if ($opens->lt($closes)) {
-            // Horario normal
-            $isOpen = $nowTime->between($opens, $closes);
-        } else {
-            // Horario que cruza medianoche
-            $isOpen = $nowTime->gte($opens) || $nowTime->lte($closes);
+        // Si cruza medianoche, el cierre es mañana
+        if ($opens->gte($closes)) {
+            $closes->addDay();
         }
+
+        $isOpen = $now->between($opens, $closes);
 
         if (!$isOpen) {
             return [
