@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 class Local extends Model
 {
     protected $table = 'locales';
-    protected $fillable = ['user_id', 'nombre', 'direccion', 'descripcion', 'slug' , 'phone' , 'account'];
+    protected $fillable = ['user_id', 'nombre', 'direccion', 'descripcion', 'slug', 'phone', 'account'];
 
     public function user()
     {
@@ -95,11 +95,19 @@ class Local extends Model
             ];
         }
 
-        // 5️⃣ Fuera de horario
-        if (
-            $now < $schedule->opens_at ||
-            $now > $schedule->closes_at
-        ) {
+        $opens = Carbon::createFromFormat('H:i', $schedule->opens_at);
+        $closes = Carbon::createFromFormat('H:i', $schedule->closes_at);
+        $nowTime = Carbon::now();
+
+        if ($opens->lt($closes)) {
+            // Horario normal
+            $isOpen = $nowTime->between($opens, $closes);
+        } else {
+            // Horario que cruza medianoche
+            $isOpen = $nowTime->gte($opens) || $nowTime->lte($closes);
+        }
+
+        if (!$isOpen) {
             return [
                 'open' => false,
                 'reason' => 'out_of_hours',
