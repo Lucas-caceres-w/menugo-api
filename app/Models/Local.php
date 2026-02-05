@@ -52,7 +52,6 @@ class Local extends Model
     public function todaySchedule()
     {
         $now = Carbon::now();
-        $dayOfWeek = $now->dayOfWeek;
 
         // 1️⃣ Closure explícito del día
         $closure = $this->closures()
@@ -67,13 +66,12 @@ class Local extends Model
             ];
         }
 
-        // 2️⃣ Horario del día
+        // 2️⃣ Horario del día (usa isoWeekday para evitar errores)
         $schedule = $this->schedules()
-            ->where('day_of_week', $dayOfWeek)
+            ->where('day_of_week', $now->isoWeekday())
             ->first();
 
-        // 3️⃣ Día cerrado manualmente
-        if ($schedule && (bool) $schedule->is_closed) {
+        if (!$schedule || $schedule->is_closed) {
             return [
                 'open' => false,
                 'reason' => 'closed_today',
@@ -81,12 +79,7 @@ class Local extends Model
             ];
         }
 
-        // 4️⃣ No hay horario
-        if (
-            !$schedule ||
-            !$schedule->opens_at ||
-            !$schedule->closes_at
-        ) {
+        if (!$schedule->opens_at || !$schedule->closes_at) {
             return [
                 'open' => false,
                 'reason' => 'no_schedule',
@@ -94,19 +87,17 @@ class Local extends Model
             ];
         }
 
-        $nowTime = $now->format('H:i:s');
-        $opens   = $schedule->opens_at;
-        $closes  = $schedule->closes_at;
+        // 3️⃣ Construcción EXPLÍCITA de fechas
+        $opensAt = $now->copy()->setTimeFromTimeString($schedule->opens_at);
+        $closesAt = $now->copy()->setTimeFromTimeString($schedule->closes_at);
 
-        if ($opens === $closes) {
-            $isOpen = true; // 24hs
-        } elseif ($opens < $closes) {
-            // NO cruza medianoche
-            $isOpen = $nowTime >= $opens && $nowTime < $closes;
-        } else {
-            // Cruza medianoche
-            $isOpen = $nowTime >= $opens || $nowTime < $closes;
+        // 4️⃣ Si el cierre es menor o igual, cruza medianoche → sumar 1 día
+        if ($closesAt->lte($opensAt)) {
+            $closesAt->addDay();
         }
+
+        // 5️⃣ Comparación REAL
+        $isOpen = $now->between($opensAt, $closesAt);
 
         if (!$isOpen) {
             return [
@@ -116,7 +107,6 @@ class Local extends Model
             ];
         }
 
-        // ✅ Abierto
         return [
             'open' => true,
             'reason' => 'open',
