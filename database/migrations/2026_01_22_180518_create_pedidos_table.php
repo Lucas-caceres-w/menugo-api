@@ -20,6 +20,7 @@ return new class extends Migration
             $table->string('client_phone');
             $table->string('client_address');
             $table->string('observacion')->nullable();
+            $table->string('tipo_entrega')->default('delivery');
             $table->string('payment_method');
             $table->string('payment_status');
             $table->string('estado')->default('pendiente');

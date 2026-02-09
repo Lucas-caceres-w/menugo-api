@@ -30,7 +30,6 @@ Route::post('/register', [RegisterController::class, 'register']);
 //Get settings
 Route::get('/mercadopago/{localId}/settings', [MercadoPagoController::class, 'settings']);
 
-
 Route::middleware('auth:sanctum')->group(function () {
             // Usuario logueado
             Route::get('/user', [UserController::class, 'show']);

@@ -56,8 +56,8 @@ class PedidosController extends Controller
                 'name'    => 'required|string|max:255',
                 'phone'   => 'required|string|max:50',
                 'address' => 'required|string|max:255',
+                'tipo_entrega' => 'required|in:delivery,retiro',
                 'observacion' => 'nullable|string|max:255',
-
                 'payment_method'   => 'required|in:cash,transfer',
                 'transfer_type'    => 'nullable|in:manual,mercadopago',
 
@@ -87,6 +87,7 @@ class PedidosController extends Controller
                 'client_name'     => $data['name'],
                 'client_phone'    => $data['phone'],
                 'client_address'  => $data['address'],
+                'tipo_entrega'    => $data['tipo_entrega'],
                 'observacion'     => $data['observacion'],
                 'payment_method'  => $data['payment_method'],
                 'payment_status'  => 'unpaid',
