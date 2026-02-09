@@ -309,4 +309,26 @@ class LocalController extends Controller
             ], 500);
         }
     }
+    public function destroyImages(Request $request, Local $local, string $type)
+    {
+        $user = $request->user();
+
+        // 🔐 ownership
+        if ($local->user_id !== $user->id) {
+            return response()->json(['message' => 'No autorizado'], 403);
+        }
+
+        if (!in_array($type, ['avatar', 'cover'])) {
+            return response()->json(['message' => 'Tipo inválido'], 422);
+        }
+
+        if ($local->$type) {
+            Storage::disk('public')->delete($local->$type);
+            $local->update([$type => null]);
+        }
+
+        return response()->json([
+            'message' => 'Imagen eliminada correctamente'
+        ]);
+    }
 }

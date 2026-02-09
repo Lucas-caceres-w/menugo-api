@@ -41,6 +41,7 @@ Route::middleware('auth:sanctum')->group(function () {
             // Locales del usuario
             Route::get('/locales', [LocalController::class, 'index']);
             Route::post('/locales/images/{localId}', [LocalController::class, 'saveImages']); // opcional, creación interna
+            Route::delete('/locales/{local}/image/{type}', [LocalController::class, 'destroyImages']);
             Route::post('/locales', [LocalController::class, 'store']);
             Route::get('/locales/{localId}', [LocalController::class, 'show']);
             Route::put('/locales/{localId}', [LocalController::class, 'update']);
