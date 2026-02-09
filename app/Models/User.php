@@ -56,4 +56,8 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         return $this->hasOne(Subscription::class);
     }
+    public function hasActiveSubscription(): bool
+    {
+        return $this->subscription?->isActive() ?? false;
+    }
 }

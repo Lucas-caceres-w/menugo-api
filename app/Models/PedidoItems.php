@@ -18,4 +18,8 @@ class PedidoItems extends Model
     {
         return $this->belongsTo(Pedidos::class);
     }
+    public function extras()
+    {
+        return $this->hasMany(PedidoItemExtra::class, 'pedido_item_id');
+    }
 }

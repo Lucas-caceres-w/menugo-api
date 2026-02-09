@@ -102,18 +102,10 @@ class MercadoPagoController extends Controller
         $local = Local::findOrFail($validated['local_id']);
         $pedido = Pedidos::findOrFail($validated['pedido_id']);
 
-        $metadata = [
-            'pedido_id' => $pedido->id,
-            'local_id' => $local->id,
-        ];
-
         try {
             $preference = $this->mpService->createPreference(
                 $local,
-                $validated['items'],
-                $validated['payer'],
-                $metadata,
-                $validated['amount']
+                $validated['items']
             );
 
             return response()->json([
@@ -259,6 +251,7 @@ class MercadoPagoController extends Controller
             'message' => 'Cuenta de Mercado Pago desvinculada',
         ]);
     }
+
     /**
      * Estado de vinlacion del cliente
      */
@@ -276,9 +269,14 @@ class MercadoPagoController extends Controller
     {
         try {
             $user = auth()->user();
-
             $planKey = $request->input('plan');
             $plan = config("plans.$planKey");
+
+            if ($user->hasActiveSubscription()) {
+                return response()->json([
+                    'message' => 'Ya contas con una subscripcion activa'
+                ], 400);
+            }
 
             if (!$plan) {
                 return response()->json([

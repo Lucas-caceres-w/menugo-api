@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Categorias;
 use App\Models\Productos;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Throwable;
 
 class ProductosController extends Controller
@@ -21,7 +22,7 @@ class ProductosController extends Controller
                 })
                 ->firstOrFail();
 
-            $productos = $categoria->productos()->orderBy('nombre')->get();
+            $productos = $categoria->productos()->orderBy('nombre')->with('product_extras')->get();
 
             return response()->json($productos, 200);
         } catch (Throwable $e) {
@@ -37,6 +38,8 @@ class ProductosController extends Controller
 
     public function store(Request $request, $categoriaId)
     {
+        DB::beginTransaction();
+
         try {
             $data = $request->validate([
                 'nombre'        => 'required|string|max:255',
@@ -45,6 +48,7 @@ class ProductosController extends Controller
                 'sku'           => 'nullable|string|max:100',
                 'activo'        => 'sometimes|boolean',
                 'image_product' => 'nullable|image|max:4096', // 4MB
+                'extras'        => 'nullable|string', // viene como JSON
             ]);
 
             // 🔐 Validar que la categoría pertenece al local del usuario
@@ -62,10 +66,25 @@ class ProductosController extends Controller
                 $data['image_product'] = $path;
             }
 
+
             $producto = $categoria->productos()->create($data);
+
+            if ($request->filled('extras')) {
+                $extras = json_decode($request->extras, true);
+
+                foreach ($extras as $extra) {
+                    $producto->extras()->create([
+                        'nombre'   => $extra['nombre'],
+                        'precio'   => $extra['precio'],
+                    ]);
+                }
+            }
+
+            DB::commit();
 
             return response()->json($producto, 201);
         } catch (Throwable $e) {
+            DB::rollBack();
             return response()->json([
                 'message' => 'Error al crear el producto',
                 'error' => $e->getMessage(),
@@ -95,6 +114,7 @@ class ProductosController extends Controller
      */
     public function update(Request $request, $productoId)
     {
+        DB::beginTransaction();
         try {
             $producto = Productos::findOrFail($productoId);
 
@@ -105,6 +125,7 @@ class ProductosController extends Controller
                 'image_product' => 'nullable|image|max:2048',
                 'sku'           => 'nullable|string|max:100',
                 'activo'        => 'sometimes|boolean',
+                'extras'        => 'sometimes|string'
             ]);
 
             logger()->info('DATA UPDATE PRODUCTO', $data);
@@ -119,13 +140,33 @@ class ProductosController extends Controller
                     ->store('products', 'public');
             }
 
+            $producto->extras()->delete();
+
+            if ($request->filled('extras')) {
+                $extras = json_decode($request->extras, true);
+
+                if (!is_array($extras)) {
+                    throw new \Exception('Formato de extras inválido');
+                }
+
+                foreach ($extras as $extra) {
+                    $producto->extras()->create([
+                        'nombre'   => $extra['nombre'],
+                        'precio'   => $extra['precio'],
+                    ]);
+                }
+            }
+
             // 🔐 Solo actualiza lo que vino
             $producto->fill($data);
             $producto->save();
 
+            DB::commit();
+
             return response()->json($producto, 200);
         } catch (Throwable $e) {
             report($e);
+            DB::rollBack();
 
             return response()->json([
                 'message' => 'Error al actualizar el producto',

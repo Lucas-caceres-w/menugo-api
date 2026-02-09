@@ -11,6 +11,7 @@ class Pedidos extends Model
         'client_name',
         'client_phone',
         'client_address',
+        'observacion',
         'payment_method',
         'payment_status',
         'estado',

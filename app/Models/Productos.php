@@ -19,4 +19,8 @@ class Productos extends Model
     {
         return $this->belongsTo(Categorias::class);
     }
+    public function extras()
+    {
+        return $this->hasMany(ExtrasProduct::class, 'product_id');
+    }
 }

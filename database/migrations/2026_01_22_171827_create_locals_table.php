@@ -17,6 +17,8 @@ return new class extends Migration
             $table->string('slug')->unique();
             $table->string('direccion')->nullable();
             $table->string('descripcion')->nullable();
+            $table->string('avatar')->nullable();
+            $table->string('cover')->nullable();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             $table->timestamps();
         });

@@ -6,6 +6,7 @@ use App\Models\Local;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Throwable;
 
@@ -58,7 +59,7 @@ class LocalController extends Controller
                 'descripcion' => 'nullable|string',
                 'direccion' => 'nullable|string',
                 'account' => 'nullable|string',
-                'phone' => 'nullable|string'
+                'phone' => 'nullable|string|max:20'
             ]);
 
             $slug = Str::slug($data['nombre']);
@@ -89,13 +90,36 @@ class LocalController extends Controller
                 ], 403);
             }
 
+            $phone = null;
+
+            if (!empty($data['phone'])) {
+                // eliminar todo lo que no sea número
+                $digits = preg_replace('/\D+/', '', $data['phone']);
+
+                /*
+                     Reglas Argentina:
+                     - si empieza con 54 y no tiene 9 → agregar 9
+                     - si no empieza con 54 → agregar 549
+                    */
+
+                if (str_starts_with($digits, '54')) {
+                    if (!str_starts_with($digits, '549')) {
+                        $digits = '549' . substr($digits, 2);
+                    }
+                } else {
+                    $digits = '549' . $digits;
+                }
+
+                $phone = $digits;
+            }
+
             $local = Local::create([
                 'user_id' => auth()->id(),
                 'nombre' => $data['nombre'],
                 'descripcion' => $data['descripcion'] ?? '',
                 'direccion' => $data['direccion'] ?? '',
                 'account' => $data['account'] ?? '',
-                'phone' => $data['phone'] ?? '',
+                'phone' => $phone ?? '',
                 'slug' => $slug
             ]);
 
@@ -136,7 +160,7 @@ class LocalController extends Controller
     {
         try {
             $local = Local::where('slug', $slug)
-                ->with(['categorias.productos'])
+                ->with(['categorias.productos.extras'])
                 ->firstOrFail();
 
             return response()->json([
@@ -167,13 +191,35 @@ class LocalController extends Controller
 
             $data = $request->validate([
                 'nombre' => 'required|string|max:255',
-                'descripcion' => 'someone|string|nullable',
-                'direccion' => 'someone|string|nullable',
-                'account' => 'someone|string|nullable',
-                'phone' => 'someone|string|nullable'
+                'descripcion' => 'nullable|string|nullable',
+                'direccion' => 'nullable|string|nullable',
+                'account' => 'nullable|string|nullable',
+                'phone' => 'nullable|string|nullable'
             ]);
 
-            $local->update($data);
+            $phone = null;
+
+            if (!empty($data['phone'])) {
+                // eliminar todo lo que no sea número
+                $digits = preg_replace('/\D+/', '', $data['phone']);
+
+                if (str_starts_with($digits, '54')) {
+                    if (!str_starts_with($digits, '549')) {
+                        $digits = '549' . substr($digits, 2);
+                    }
+                } else {
+                    $digits = '549' . $digits;
+                }
+
+                $phone = $digits;
+            }
+            $local->update([
+                'nombre' => $data['nombre'],
+                'descripcion' => $data['descripcion'] ?? '',
+                'direccion' => $data['direccion'] ?? '',
+                'account' => $data['account'] ?? '',
+                'phone' => $phone ?? '',
+            ]);
 
             return response()->json($local, 200);
         } catch (ModelNotFoundException $e) {
@@ -211,6 +257,55 @@ class LocalController extends Controller
             return response()->json([
                 'message' => 'Error al eliminar el local',
                 'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+    public function saveImages(Request $request, int $localId)
+    {
+        try {
+            $user = $request->user();
+
+            // 🔐 Validar ownership del local
+            $local = Local::where('id', $localId)
+                ->where('user_id', $user->id)
+                ->firstOrFail();
+
+            $data = $request->validate([
+                'avatar' => 'nullable|image|max:4096', // 4MB
+                'cover'  => 'nullable|image|max:6144', // 6MB
+            ]);
+
+            // 📸 Imagen de perfil
+            if ($request->hasFile('avatar')) {
+                if ($local->avatar) {
+                    Storage::disk('public')->delete($local->avatar);
+                }
+
+                $data['avatar'] = $request->file('avatar')
+                    ->store('locales/avatars', 'public');
+            }
+
+            // 🖼 Imagen de portada
+            if ($request->hasFile('cover')) {
+                if ($local->cover) {
+                    Storage::disk('public')->delete($local->cover);
+                }
+
+                $data['cover'] = $request->file('cover')
+                    ->store('locales/covers', 'public');
+            }
+
+            $local->update($data);
+
+            return response()->json([
+                'message' => 'Imágenes del local actualizadas',
+                'local' => $local->fresh(),
+            ], 200);
+        } catch (Throwable $e) {
+            report($e);
+
+            return response()->json([
+                'message' => 'Error al guardar las imágenes',
             ], 500);
         }
     }

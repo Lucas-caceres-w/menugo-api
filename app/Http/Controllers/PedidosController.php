@@ -26,7 +26,7 @@ class PedidosController extends Controller
                 ->firstOrFail();
 
             $pedidos = Pedidos::where('local_id', $local->id)
-                ->with('items')
+                ->with('items.extras')
                 ->orderByDesc('created_at')
                 ->get();
             // Paginación
@@ -56,6 +56,7 @@ class PedidosController extends Controller
                 'name'    => 'required|string|max:255',
                 'phone'   => 'required|string|max:50',
                 'address' => 'required|string|max:255',
+                'observacion' => 'nullable|string|max:255',
 
                 'payment_method'   => 'required|in:cash,transfer',
                 'transfer_type'    => 'nullable|in:manual,mercadopago',
@@ -63,6 +64,9 @@ class PedidosController extends Controller
                 'items'              => 'required|array|min:1',
                 'items.*.producto_id' => 'required|integer|exists:productos,id',
                 'items.*.cantidad'   => 'required|integer|min:1',
+
+                'items.*.extras'      => 'nullable|array',
+                'items.*.extras.*'    => 'integer',
             ]);
 
             $local = Local::findOrFail($localId);
@@ -83,6 +87,7 @@ class PedidosController extends Controller
                 'client_name'     => $data['name'],
                 'client_phone'    => $data['phone'],
                 'client_address'  => $data['address'],
+                'observacion'     => $data['observacion'],
                 'payment_method'  => $data['payment_method'],
                 'payment_status'  => 'unpaid',
                 'estado'          => $estado,
@@ -100,17 +105,42 @@ class PedidosController extends Controller
                     )
                     ->firstOrFail();
 
-                $subtotal = $producto->precio * $item['cantidad'];
-                $total += $subtotal;
+                $precioBase = $producto->precio;
+                $extrasTotal = 0;
 
-                $pedido->items()->create([
+                $pedidoItem = $pedido->items()->create([
                     'pedido_id'     => $pedido->id,
                     'producto_id'     => $producto->id,
                     'producto_nombre'   => $producto->nombre,
                     'precio_unitario'     => $producto->precio,
                     'cantidad'       => $item['cantidad'],
-                    'subtotal'       => $subtotal,
+                    'subtotal'       => 0,
                 ]);
+
+                if (!empty($item['extras'])) {
+                    $extras = $producto->extras()
+                        ->whereIn('id', $item['extras'])
+                        ->get();
+
+                    foreach ($extras as $extra) {
+                        $pedidoItem->extras()->create([
+                            'extra_id'     => $extra->id,
+                            'extra_nombre' => $extra->nombre,
+                            'extra_precio' => $extra->precio,
+                        ]);
+
+                        $extrasTotal += $extra->precio;
+                    }
+                }
+
+                // 3️⃣ Subtotal REAL
+                $subtotal = ($precioBase + $extrasTotal) * $item['cantidad'];
+
+                $pedidoItem->update([
+                    'subtotal' => $subtotal,
+                ]);
+
+                $total += $subtotal;
             }
 
             $pedido->update(['total' => $total]);
@@ -154,7 +184,6 @@ class PedidosController extends Controller
         }
     }
 
-
     /**
      * Mostrar pedido (ADMIN o CLIENTE)
      */
@@ -164,7 +193,7 @@ class PedidosController extends Controller
             // Admin del local
             if ($request->user() && $pedido->local->user_id === $request->user()->id) {
                 return response()->json(
-                    $pedido->load('items'),
+                    $pedido->load('items.extras'),
                     200
                 );
             }
@@ -185,7 +214,7 @@ class PedidosController extends Controller
     {
         try {
             // Admin del local
-            $pedido = Pedidos::where('id', $pedidoId)->with('items')->with('local')->get();
+            $pedido = Pedidos::where('id', $pedidoId)->with('items.extras')->with('local')->get();
 
             if (!isset($pedido)) {
                 return response()->json(

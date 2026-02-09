@@ -13,7 +13,6 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\LocalController;
 use App\Http\Controllers\LocalSchedulesController;
-use App\Http\Controllers\TransaccionesController;
 
 Route::get('/locales/{localId}/categorias', [CategoriasController::class, 'index']);
 Route::get('/categorias/{categoriaId}/productos', [ProductosController::class, 'index']);
@@ -41,6 +40,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
             // Locales del usuario
             Route::get('/locales', [LocalController::class, 'index']);
+            Route::post('/locales/images/{localId}', [LocalController::class, 'saveImages']); // opcional, creación interna
             Route::post('/locales', [LocalController::class, 'store']);
             Route::get('/locales/{localId}', [LocalController::class, 'show']);
             Route::put('/locales/{localId}', [LocalController::class, 'update']);
@@ -67,11 +67,6 @@ Route::middleware('auth:sanctum')->group(function () {
             // Pedidos (para locales, ver todos los pedidos recibidos)
             Route::get('/pedidos/admin/{localId}', [PedidosController::class, 'index']);
             Route::put('/pedidos/{pedidoId}/estado', [PedidosController::class, 'cambiarEstado']); // pendiente, aprobado, cancelado, pagado
-
-            // Transacciones / Facturación
-            /* Route::get('/transacciones', [TransaccionesController::class, 'index']);
-            Route::post('/transacciones', [TransaccionesController::class, 'store']);
-            Route::put('/transacciones/{id}', [TransaccionesController::class, 'update']); */
 
             // MercadoPago - vincular, refrescar token, preferencias
             Route::post('/mercadopago/oauth', [MercadoPagoController::class, 'oauth']);

@@ -72,7 +72,7 @@ class CategoriasController extends Controller
         try {
             $menu = Categorias::where('local_id', $localId)
                 ->orderBy('orden')
-                ->with('productos')
+                ->with('productos.extras')
                 ->get();
 
             return response()->json($menu, 200);

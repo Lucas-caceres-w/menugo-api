@@ -8,7 +8,17 @@ use Illuminate\Database\Eloquent\Model;
 class Local extends Model
 {
     protected $table = 'locales';
-    protected $fillable = ['user_id', 'nombre', 'direccion', 'descripcion', 'slug', 'phone', 'account'];
+    protected $fillable = [
+        'user_id',
+        'nombre',
+        'direccion',
+        'descripcion',
+        'slug',
+        'phone',
+        'account',
+        'avatar',
+        'cover'
+    ];
 
     public function user()
     {
@@ -68,8 +78,36 @@ class Local extends Model
 
         // 2️⃣ Horario del día (usa isoWeekday para evitar errores)
         $schedule = $this->schedules()
-            ->where('day_of_week', $now->isoWeekday())
+            ->where('day_of_week', $now->dayOfWeek())
             ->first();
+
+        if (!$schedule) {
+            $yesterday = $now->copy()->subDay();
+
+            $yesterdaySchedule = $this->schedules()
+                ->where('day_of_week', $yesterday->dayOfWeek())
+                ->first();
+
+            if ($yesterdaySchedule && !$yesterdaySchedule->is_closed) {
+                $opensAt = $yesterday->copy()
+                    ->setTimeFromTimeString($yesterdaySchedule->opens_at);
+
+                $closesAt = $yesterday->copy()
+                    ->setTimeFromTimeString($yesterdaySchedule->closes_at);
+
+                if ($closesAt->lte($opensAt)) {
+                    $closesAt->addDay();
+
+                    if ($now->between($opensAt, $closesAt)) {
+                        return [
+                            'open' => true,
+                            'reason' => 'open',
+                            'schedule' => $yesterdaySchedule,
+                        ];
+                    }
+                }
+            }
+        }
 
         if (!$schedule || $schedule->is_closed) {
             return [

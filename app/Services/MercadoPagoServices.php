@@ -130,6 +130,7 @@ class MercadoPagoServices
                                                 ],
 
                                                 'metadata' => [
+                                                            'type' => 'pedido',
                                                             'pedido_id' => $pedido->id,
                                                             'local_id'  => $local->id,
                                                 ],

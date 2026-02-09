@@ -30,15 +30,9 @@ class Subscription extends Model
 
     public function isActive(): bool
     {
-        if ($this->status !== 'active') {
-            return false;
-        }
-
-        if ($this->ends_at && now()->gt($this->ends_at)) {
-            return false;
-        }
-
-        return true;
+        return
+            $this->status === 'active' &&
+            (!$this->ends_at || now()->lte($this->ends_at));
     }
 
     public function activatePlan(User $user, string $planKey): void
