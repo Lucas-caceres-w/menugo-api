@@ -13,11 +13,14 @@ return new class extends Migration
     {
         Schema::create('transacciones', function (Blueprint $table) {
             $table->id();
-            $table->string('pedido_id')->nullable();
+            $table->string('transaccionable');
+            
             $table->decimal('total', 10, 2);
             $table->string('medio_pago');
-            $table->string('payment_id');
+
+            $table->string('payment_id')->unique();
             $table->string('estado')->default('pendiente');
+            
             $table->string('referencia_externa')->nullable();
             $table->timestamp('fecha_pago')->nullable();
 
