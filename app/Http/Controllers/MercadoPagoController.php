@@ -22,9 +22,9 @@ use MercadoPago\MercadoPagoConfig;
 class MercadoPagoController extends Controller
 {
     protected $mpService;
-    protected function handlePedidoPayment(array $payment, array $metadata)
+    protected function handlePedidoPayment(array $payment)
     {
-        $pedido = Pedidos::findOrFail($metadata['pedido_id']);
+        /* $pedido = Pedidos::findOrFail($metadata['pedido_id']);
         $local  = Local::findOrFail($metadata['local_id']);
 
         Transacciones::create([
@@ -43,7 +43,7 @@ class MercadoPagoController extends Controller
 
         if ($payment['status'] === 'rejected') {
             $pedido->update(['estado' => 'cancelado']);
-        }
+        } */
     }
 
     protected function handleSubscriptionPayment(array $payment)
@@ -290,8 +290,8 @@ class MercadoPagoController extends Controller
                 'status' => $status,
             ]);
 
-            match ($metadata['type']) {
-                'pedido'       => $this->handlePedidoPayment($payment, $metadata),
+            match ($type) {
+                'pedido'       => $this->handlePedidoPayment($payment),
                 'subscription' => $this->handleSubscriptionPayment($payment),
                 default        => throw new \Exception('Tipo de pago inválido'),
             };

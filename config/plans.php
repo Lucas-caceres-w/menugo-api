@@ -6,7 +6,7 @@ return [
                         'max_locals' => 1,
             ],
             'test' => [
-                        'duration_days' => 30,
+                        'duration_days' => 60,
                         'price' => 1,
                         'max_locals' => 1,
             ],
