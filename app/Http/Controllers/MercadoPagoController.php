@@ -101,10 +101,21 @@ class MercadoPagoController extends Controller
         MercadoPagoConfig::setAccessToken($accessToken);
 
         $client = new \MercadoPago\Client\Payment\PaymentClient();
-
         $payment = $client->get($paymentId);
 
-        return $payment->toArray();
+        return [
+            'id' => $payment->id,
+            'status' => $payment->status,
+            'status_detail' => $payment->status_detail,
+            'transaction_amount' => $payment->transaction_amount,
+            'payment_type_id' => $payment->payment_type_id,
+            'metadata' => (array) $payment->metadata,
+            'external_reference' => $payment->external_reference,
+            'payer' => [
+                'email' => $payment->payer?->email,
+                'id' => $payment->payer?->id,
+            ],
+        ];
     }
 
     public function __construct(MercadoPagoServices $mpService)
