@@ -56,6 +56,14 @@ class Subscription extends Model
         ]);
     }
 
+    public function activate(): void
+    {
+        $this->update([
+            'status' => 'active',
+            'starts_at' => now(),
+            'ends_at' => now()->addMonth(), // o según plan
+        ]);
+    }
 
     public static function createTrialForUser(User $user)
     {

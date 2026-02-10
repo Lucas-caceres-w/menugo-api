@@ -46,13 +46,35 @@ class MercadoPagoController extends Controller
         }
     }
 
-    protected function handleSubscriptionPayment(array $payment, array $metadata)
+    protected function handleSubscriptionPayment(array $payment)
     {
-        $user = User::findOrFail($metadata['user_id']);
-        $plan = $metadata['plan'];
+        $reference = $payment['external_reference'] ?? null;
+
+        if (!$reference) {
+            logger('Pago sin external_reference', [
+                'payment_id' => $payment['id'],
+            ]);
+            return;
+        }
+
+        [$type, $subscriptionId] = explode('_', $reference);
+
+        if ($type !== 'subscription') {
+            return;
+        }
+
+        $subscription = Subscription::find($subscriptionId);
+
+        if (!$subscription) {
+            logger('Suscripción no encontrada', [
+                'subscription_id' => $subscriptionId,
+                'payment_id' => $payment['id'],
+            ]);
+            return;
+        }
 
         Transacciones::create([
-            'user_id'   => $user->id,
+            'user_id'   => $subscription->user_id,
             'payment_id' => $payment['id'],
             'status'    => $payment['status'],
             'amount'    => $payment['transaction_amount'] ?? 0,
@@ -60,8 +82,9 @@ class MercadoPagoController extends Controller
             'fecha'     => now(),
         ]);
 
+        // ✅ Activar solo si está aprobado
         if ($payment['status'] === 'approved') {
-            Subscription::activatePlan($user, $plan);
+            $subscription->activate();
         }
     }
 
@@ -247,10 +270,17 @@ class MercadoPagoController extends Controller
             ]);
 
             $metadata = $payment['metadata'] ?? [];
-            $status   = $payment['status'] ?? 'unknown';
+            $status = $payment['status'];
+            $reference = $payment['external_reference'] ?? null;
+
+            if ($status !== 'approved' || !$reference) {
+                return response()->json(['ignored' => true], 200);
+            }
+
+            [$type, $id] = explode('_', $reference);
 
             if (!isset($metadata['type'])) {
-                logger('Payment data',$payment);
+                logger('Payment data', $payment);
             }
 
             // 🧭 Router por tipo de pago
@@ -262,7 +292,7 @@ class MercadoPagoController extends Controller
 
             match ($metadata['type']) {
                 'pedido'       => $this->handlePedidoPayment($payment, $metadata),
-                'subscription' => $this->handleSubscriptionPayment($payment, $metadata),
+                'subscription' => $this->handleSubscriptionPayment($payment),
                 default        => throw new \Exception('Tipo de pago inválido'),
             };
 
