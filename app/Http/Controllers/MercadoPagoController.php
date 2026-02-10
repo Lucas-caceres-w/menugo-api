@@ -249,9 +249,9 @@ class MercadoPagoController extends Controller
 
         try {
             // 🔒 Idempotencia
-            if (Transacciones::where('pedido_id', $paymentId)->exists()) {
+            if (Transacciones::where('payment_id', $paymentId)->exists()) {
                 logger('[MP WEBHOOK] Pago duplicado (idempotencia)', [
-                    'pedido_id' => $paymentId,
+                    'payment_id' => $paymentId,
                 ]);
 
                 DB::commit();
