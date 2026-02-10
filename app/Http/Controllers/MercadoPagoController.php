@@ -250,7 +250,7 @@ class MercadoPagoController extends Controller
             $status   = $payment['status'] ?? 'unknown';
 
             if (!isset($metadata['type'])) {
-                throw new \Exception('Pago sin metadata');
+                logger('Payment data',$payment);
             }
 
             // 🧭 Router por tipo de pago
@@ -329,6 +329,7 @@ class MercadoPagoController extends Controller
             ),
         ]);
     }
+
     public function iniciarSubscripcion(Request $request)
     {
         try {
