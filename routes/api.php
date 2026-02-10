@@ -21,7 +21,7 @@ Route::get('/local/{slug}', [LocalController::class, 'showClientLocal']);
 // Crear pedido por cliente (no requiere auth, se puede pasar email/nombre en el request)
 Route::post('/pedidos/{localId}', [PedidosController::class, 'store']);
 // Mercado Pago webhooks (MP llama a esto)
-Route::post('/mercadopago/webhook', [MercadoPagoController::class, 'webhooks']);
+Route::post('/mercadopago/webhook', [MercadoPagoController::class, 'webhook']);
 // Opcional: mostrar estado del pedido para cliente
 Route::get('/pedidos/{pedidoId}', [PedidosController::class, 'showCliente']);
 //Login & Register

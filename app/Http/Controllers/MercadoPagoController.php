@@ -10,6 +10,7 @@ use App\Models\Transacciones;
 use App\Models\User;
 use App\Services\MercadoPagoTokensService;
 use App\Services\MercadoPagoServices;
+use Carbon\Carbon;
 use Illuminate\Container\Attributes\Log;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -64,9 +65,35 @@ class MercadoPagoController extends Controller
         }
     }
 
+    private function calculateUpgradeAmount($subscription, array $newPlan)
+    {
+        $now = Carbon::now();
+
+        $totalDays = Carbon::parse($subscription->started_at)
+            ->diffInDays(Carbon::parse($subscription->ends_at));
+
+        $remainingDays = $now->diffInDays($subscription->ends_at, false);
+
+        if ($remainingDays <= 0) {
+            return $newPlan['price'];
+        }
+
+        $currentPlan = config("plans.{$subscription->plan}");
+
+        $currentDaily = $currentPlan['price'] / $totalDays;
+        $newDaily     = $newPlan['price'] / $totalDays;
+
+        $differencePerDay = $newDaily - $currentDaily;
+
+        $amount = max(0, round($differencePerDay * $remainingDays, 2));
+
+        return $amount;
+    }
+
+
     public function fetchPaymentByPlatform(string $paymentId): array
     {
-        $accessToken = config('services.mercadopago.access_token');
+        $accessToken = env('MP_ACCESS_TOKEN');
 
         if (!$accessToken) {
             throw new \Exception('Access token de plataforma no configurado');
@@ -167,8 +194,17 @@ class MercadoPagoController extends Controller
      */
     public function webhook(Request $request)
     {
+        logger('[MP WEBHOOK] Evento recibido', [
+            'headers' => $request->headers->all(),
+            'body' => $request->all(),
+        ]);
         $type = $request->input('type');
         $data = $request->input('data');
+
+        logger('[MP WEBHOOK] Tipo de evento', [
+            'type' => $type,
+            'data_id' => $data['id'] ?? null,
+        ]);
 
         if ($type !== 'payment' || !isset($data['id'])) {
             return response()->json(['message' => 'Evento no relevante'], 200);
@@ -180,13 +216,25 @@ class MercadoPagoController extends Controller
 
         try {
             // 🔒 Idempotencia
-            if (Transacciones::where('payment_id', $paymentId)->exists()) {
+            if (Transacciones::where('pedido_id', $paymentId)->exists()) {
+                logger('[MP WEBHOOK] Pago duplicado (idempotencia)', [
+                    'pedido_id' => $paymentId,
+                ]);
+
                 DB::commit();
                 return response()->json(['message' => 'Pago ya procesado'], 200);
             }
 
             // 🔍 Obtener pago desde MP
             $payment = $this->fetchPaymentByPlatform($paymentId);
+
+            logger('[MP WEBHOOK] Pago obtenido desde MP', [
+                'payment_id' => $paymentId,
+                'status' => $payment['status'] ?? null,
+                'status_detail' => $payment['status_detail'] ?? null,
+                'metadata' => $payment['metadata'] ?? [],
+                'amount' => $payment['transaction_amount'] ?? null,
+            ]);
 
             $metadata = $payment['metadata'] ?? [];
             $status   = $payment['status'] ?? 'unknown';
@@ -196,6 +244,12 @@ class MercadoPagoController extends Controller
             }
 
             // 🧭 Router por tipo de pago
+            logger('[MP WEBHOOK] Routing por metadata', [
+                'payment_id' => $paymentId,
+                'type' => $metadata['type'] ?? null,
+                'status' => $status,
+            ]);
+
             match ($metadata['type']) {
                 'pedido'       => $this->handlePedidoPayment($payment, $metadata),
                 'subscription' => $this->handleSubscriptionPayment($payment, $metadata),
@@ -272,17 +326,26 @@ class MercadoPagoController extends Controller
             $planKey = $request->input('plan');
             $plan = config("plans.$planKey");
 
-            if ($user->hasActiveSubscription()) {
-                return response()->json([
-                    'message' => 'Ya contas con una subscripcion activa'
-                ], 400);
-            }
-
             if (!$plan) {
                 return response()->json([
                     'message' => 'Plan inválido'
                 ], 400);
             }
+
+            $subscription = $user->activeSubscription();
+
+            if ($subscription) {
+                if ($plan['price'] <= $subscription->price) {
+                    return response()->json([
+                        'message' => 'Solo se permite subir de plan'
+                    ], 400);
+                }
+
+                $amount = $this->calculateUpgradeAmount($subscription, $plan);
+            } else {
+                $amount = $plan['price'];
+            }
+
 
             // 🔐 Token FIJO de la plataforma
             MercadoPagoConfig::setAccessToken(
@@ -299,9 +362,9 @@ class MercadoPagoController extends Controller
 
             $preference = $client->create([
                 'items' => [[
-                    'title' => $planKey,
+                    'title' => "Plan {$planKey}",
                     'quantity' => 1,
-                    'unit_price' => (float) $plan['price'],
+                    'unit_price' => (float) $amount,
                     'currency_id' => 'ARS',
                 ]],
 
@@ -313,9 +376,13 @@ class MercadoPagoController extends Controller
                 'external_reference' => "subscription_{$user->id}_{$planKey}",
 
                 'metadata' => [
-                    'type'     => 'subscription',
-                    'user_id'  => $user->id,
-                    'plan'     => $planKey,
+                    'type'            => 'subscription',
+                    'action'          => $subscription ? 'upgrade' : 'new',
+                    'user_id'         => $user->id,
+                    'from_plan'       => $subscription?->plan,
+                    'to_plan'         => $planKey,
+                    'original_amount' => $plan['price'],
+                    'charged_amount'  => $amount,
                 ],
 
                 'back_urls' => [

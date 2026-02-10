@@ -260,6 +260,7 @@ class LocalController extends Controller
             ], 500);
         }
     }
+    
     public function saveImages(Request $request, int $localId)
     {
         try {

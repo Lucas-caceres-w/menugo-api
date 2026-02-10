@@ -5,6 +5,11 @@ return [
                         'price' => 0,
                         'max_locals' => 1,
             ],
+            'test' => [
+                        'duration_days' => 30,
+                        'price' => 1,
+                        'max_locals' => 1,
+            ],
             'basic' => [
                         'price' => 15000,
                         'max_locals' => 1,

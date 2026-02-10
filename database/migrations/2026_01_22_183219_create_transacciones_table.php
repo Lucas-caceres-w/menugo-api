@@ -18,6 +18,7 @@ return new class extends Migration
                 ->cascadeOnDelete();
             $table->decimal('total', 10, 2);
             $table->string('medio_pago');
+            $table->string('payment_id');
             $table->string('estado')->default('pendiente');
             $table->string('referencia_externa')->nullable();
             $table->timestamp('fecha_pago')->nullable();
