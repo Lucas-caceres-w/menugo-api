@@ -24,17 +24,33 @@ class MercadoPagoController extends Controller
     protected $mpService;
     protected function handlePedidoPayment(array $payment)
     {
-        /* $pedido = Pedidos::findOrFail($metadata['pedido_id']);
-        $local  = Local::findOrFail($metadata['local_id']);
+        $reference = $payment['external_reference'] ?? null;
+
+        if (!$reference) {
+            logger('Pago sin external_reference', [
+                'payment_id' => $payment['id'],
+            ]);
+            return;
+        }
+
+        [$type, $pedidoId] = explode('_', $reference);
+
+        $pedido = Pedidos::findOrFail($pedidoId);
+        if (!$pedido) {
+            logger('Pedido no encontrado', [
+                'pedido_id' => $pedidoId,
+                'payment_id' => $payment['id'],
+            ]);
+            return;
+        }
 
         $pedido->transacciones()->create([
-            'pedido_id' => $pedido->id,
-            'local_id'  => $local->id,
+            'total' => $payment['transaction_amount'],
+            'medio_pago' => 'mercadopago',
             'payment_id' => $payment['id'],
-            'status'    => $payment['status'],
-            'amount'    => $payment['transaction_amount'] ?? 0,
-            'medio_pago' => $payment['payment_type_id'] ?? 'mercadopago',
-            'fecha'     => now(),
+            'estado' => $payment['status'],
+            'referencia_externa' => $payment['external_reference'] ?? null,
+            'fecha_pago' => $payment['status'] === 'approved' ? now() : null,
         ]);
 
         if ($payment['status'] === 'approved') {
@@ -43,7 +59,7 @@ class MercadoPagoController extends Controller
 
         if ($payment['status'] === 'rejected') {
             $pedido->update(['estado' => 'cancelado']);
-        } */
+        }
     }
 
     protected function handleSubscriptionPayment(array $payment)
@@ -284,7 +300,7 @@ class MercadoPagoController extends Controller
             }
 
             // 🧭 Router por tipo de pago
-            logger('[MP WEBHOOK] Routing por metadata', [
+            logger('[MP WEBHOOK] Routing por reference', [
                 'payment_id' => $paymentId,
                 'type' => $metadata['type'] ?? null,
                 'status' => $status,
@@ -386,6 +402,21 @@ class MercadoPagoController extends Controller
             } else {
                 $amount = $plan['price'];
             }
+
+            $active = $user->activeSubscription();
+
+            if ($active) {
+                $active->update([
+                    'ends_at' => now(),
+                ]);
+            }
+
+            $subscription = Subscription::create([
+                'user_id' => $user->id,
+                'plan' => $planKey,
+                'status' => 'pending',
+                'price' => $plan['price'],
+            ]);
 
 
             // 🔐 Token FIJO de la plataforma
