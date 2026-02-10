@@ -90,7 +90,6 @@ class MercadoPagoController extends Controller
         return $amount;
     }
 
-
     public function fetchPaymentByPlatform(string $paymentId): array
     {
         $accessToken = env('MP_ACCESS_TOKEN');
@@ -394,7 +393,7 @@ class MercadoPagoController extends Controller
                 'auto_return' => 'approved',
 
                 'notification_url' =>
-                env('APP_URL') . '/api/webhooks/mercadopago',
+                env('APP_URL') . '/api/mercadopago/webhook',
             ]);
 
             return response()->json([
