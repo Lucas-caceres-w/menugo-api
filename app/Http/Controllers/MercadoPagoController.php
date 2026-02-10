@@ -76,6 +76,7 @@ class MercadoPagoController extends Controller
         Transacciones::create([
             'user_id'   => $subscription->user_id,
             'payment_id' => $payment['id'],
+            'pedido_id' => $payment['id'],
             'status'    => $payment['status'],
             'amount'    => $payment['transaction_amount'] ?? 0,
             'medio_pago' => 'mercadopago',

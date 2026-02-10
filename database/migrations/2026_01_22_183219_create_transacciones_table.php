@@ -13,9 +13,7 @@ return new class extends Migration
     {
         Schema::create('transacciones', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('pedido_id')
-                ->constrained('pedidos')
-                ->cascadeOnDelete();
+            $table->string('pedido_id')->nullable();
             $table->decimal('total', 10, 2);
             $table->string('medio_pago');
             $table->string('payment_id');
