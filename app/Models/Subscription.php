@@ -78,4 +78,8 @@ class Subscription extends Model
             'status'    => 'active',
         ]);
     }
+    public function transacciones()
+    {
+        return $this->morphMany(Transacciones::class, 'transaccionable');
+    }
 }

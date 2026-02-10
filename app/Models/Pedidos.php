@@ -24,7 +24,7 @@ class Pedidos extends Model
     }
     public function transacciones()
     {
-        return $this->hasMany(Transacciones::class);
+        return $this->morphMany(Transacciones::class, 'transaccionable');
     }
     public function local()
     {

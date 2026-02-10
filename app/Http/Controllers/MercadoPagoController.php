@@ -27,7 +27,7 @@ class MercadoPagoController extends Controller
         /* $pedido = Pedidos::findOrFail($metadata['pedido_id']);
         $local  = Local::findOrFail($metadata['local_id']);
 
-        Transacciones::create([
+        $pedido->transacciones()->create([
             'pedido_id' => $pedido->id,
             'local_id'  => $local->id,
             'payment_id' => $payment['id'],
@@ -73,14 +73,13 @@ class MercadoPagoController extends Controller
             return;
         }
 
-        Transacciones::create([
-            'user_id'   => $subscription->user_id,
-            'payment_id' => $payment['id'],
-            'pedido_id' => $payment['id'],
-            'status'    => $payment['status'],
-            'amount'    => $payment['transaction_amount'] ?? 0,
+        $subscription->transacciones()->create([
+            'total' => $payment['transaction_amount'],
             'medio_pago' => 'mercadopago',
-            'fecha'     => now(),
+            'payment_id' => $payment['id'],
+            'estado' => $payment['status'],
+            'referencia_externa' => $payment['external_reference'] ?? null,
+            'fecha_pago' => $payment['status'] === 'approved' ? now() : null,
         ]);
 
         // ✅ Activar solo si está aprobado
