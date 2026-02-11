@@ -15,7 +15,8 @@ return new class extends Migration
             $table->id();
             $table->string('nombre');
             $table->string('slug')->unique();
-            $table->string('direccion')->nullable();
+            $table->string('direccion');
+            $table->string('precio_envio');
             $table->string('descripcion')->nullable();
             $table->string('avatar')->nullable();
             $table->string('cover')->nullable();

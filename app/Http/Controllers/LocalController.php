@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\Local;
-use Carbon\Carbon;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -193,6 +192,7 @@ class LocalController extends Controller
                 'nombre' => 'required|string|max:255',
                 'descripcion' => 'nullable|string|nullable',
                 'direccion' => 'nullable|string|nullable',
+                'precio_envio' => 'nullable|string|nullable',
                 'account' => 'nullable|string|nullable',
                 'phone' => 'nullable|string|nullable'
             ]);
@@ -217,6 +217,7 @@ class LocalController extends Controller
                 'nombre' => $data['nombre'],
                 'descripcion' => $data['descripcion'] ?? '',
                 'direccion' => $data['direccion'] ?? '',
+                'precio_envio' => $data['precio_envio'] ?? '',
                 'account' => $data['account'] ?? '',
                 'phone' => $phone ?? '',
             ]);

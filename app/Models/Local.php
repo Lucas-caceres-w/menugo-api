@@ -13,6 +13,7 @@ class Local extends Model
         'nombre',
         'direccion',
         'descripcion',
+        'precio_envio',
         'slug',
         'phone',
         'account',
