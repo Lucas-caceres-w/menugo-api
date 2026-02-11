@@ -103,12 +103,17 @@ class MercadoPagoServices
 
                                     $client = new \MercadoPago\Client\Preference\PreferenceClient();
 
-                                    $items = $pedido->items->map(fn($item) => [
-                                                'title'       => $item->producto_nombre,
-                                                'quantity'    => $item->cantidad,
-                                                'unit_price'  => (float) $item->precio_unitario,
-                                                'currency_id' => 'ARS',
-                                    ])->toArray();
+                                    $items = $pedido->items->map(function ($item) {
+
+                                                $unitPrice = $item->subtotal / $item->cantidad;
+
+                                                return [
+                                                            'title'       => $item->producto_nombre,
+                                                            'quantity'    => $item->cantidad,
+                                                            'unit_price'  => (float) $unitPrice,
+                                                            'currency_id' => 'ARS',
+                                                ];
+                                    })->toArray();
 
                                     logger()->info('MP back_urls', [
                                                 'success' => env('FRONTEND_URL') . '/pedido/success',
