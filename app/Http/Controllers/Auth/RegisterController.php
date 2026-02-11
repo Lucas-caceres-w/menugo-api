@@ -18,8 +18,6 @@ class RegisterController extends Controller
     {
         try {
 
-            DB::beginTransaction();
-            
             $data = $request->validate([
                 'name' => 'required|string|max:255',
                 'email' => 'required|email|unique:users,email',
@@ -32,22 +30,8 @@ class RegisterController extends Controller
                 'password' => Hash::make($data['password']),
             ]);
 
-            try {
-                event(new Registered($user));
-            } catch (Throwable $mailError) {
-
-                logger('Error enviando email de verificación', [
-                    'user_id' => $user->id,
-                    'error'   => $mailError->getMessage(),
-                ]);
-
-                DB::rollBack();
-
-                return response()->json([
-                    'message' => 'No se pudo enviar el email de verificación. Verifica que el correo sea válido.',
-                    'code' => 'EMAIL_VERIFICATION_FAILED'
-                ], 500);
-            }
+            // Enviar verificación (no bloqueante)
+            event(new Registered($user));
 
             $token = $user->createToken('spa')->plainTextToken;
 
@@ -57,11 +41,12 @@ class RegisterController extends Controller
 
             return response()->json([
                 'message' => 'Usuario creado',
-                'token' => $token
+                'token'   => $token,
+                'email_verification_sent' => true
             ], 201);
         } catch (Throwable $e) {
             report($e);
-            logger($e->getMessage());
+
             return response()->json([
                 'message' => 'Error al registrar usuario'
             ], 500);
