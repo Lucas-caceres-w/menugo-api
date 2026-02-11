@@ -56,7 +56,8 @@ class LocalController extends Controller
                     'regex:/^[a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s]+$/'
                 ],
                 'descripcion' => 'nullable|string',
-                'direccion' => 'nullable|string',
+                'precio_envio' => 'required|string',
+                'direccion' => 'required|string',
                 'account' => 'nullable|string',
                 'phone' => 'nullable|string|max:20'
             ]);
@@ -116,7 +117,8 @@ class LocalController extends Controller
                 'user_id' => auth()->id(),
                 'nombre' => $data['nombre'],
                 'descripcion' => $data['descripcion'] ?? '',
-                'direccion' => $data['direccion'] ?? '',
+                'precio_envio' => $data['precio_envio'],
+                'direccion' => $data['direccion'],
                 'account' => $data['account'] ?? '',
                 'phone' => $phone ?? '',
                 'slug' => $slug

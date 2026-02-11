@@ -16,14 +16,14 @@ class VerificationController extends Controller
     {
         try {
             if ($request->user()->hasVerifiedEmail()) {
-                return redirect(config('app.frontend_url') . '/email-already-verified');
+                return redirect(env('FRONTEND_URL') . '/verify?status=already');
             }
 
             $request->fulfill();
 
-            return redirect(config('app.frontend_url') . '/email-verified');
+            return redirect(env('FRONTEND_URL') . '/verify?status=success');
         } catch (Throwable $e) {
-            return redirect(config('app.frontend_url') . '/email-verify-error');
+            return redirect(env('FRONTEND_URL') . '/verify?status=error');
         }
     }
 

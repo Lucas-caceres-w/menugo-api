@@ -35,6 +35,7 @@ class UserController extends Controller
 
             return response()->json([
                 'user' => $user,
+                'verify' => $user->hasVerifiedEmail(),
             ], 200);
         } catch (Throwable $e) {
             return response()->json([

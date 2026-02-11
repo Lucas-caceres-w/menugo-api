@@ -4,6 +4,7 @@
 
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Auth\RegisterController;
+use App\Http\Controllers\Auth\VerificationController;
 use App\Http\Controllers\CategoriasController;
 use App\Http\Controllers\LocalClosuresController;
 use App\Http\Controllers\MercadoPagoController;
@@ -13,6 +14,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\LocalController;
 use App\Http\Controllers\LocalSchedulesController;
+use Symfony\Component\HttpFoundation\Request;
 
 Route::get('/locales/{localId}/categorias', [CategoriasController::class, 'index']);
 Route::get('/categorias/{categoriaId}/productos', [ProductosController::class, 'index']);
@@ -30,6 +32,33 @@ Route::post('/register', [RegisterController::class, 'register']);
 //Get settings
 Route::get('/mercadopago/{localId}/settings', [MercadoPagoController::class, 'settings']);
 
+// Verificacion de email
+Route::get('/email/verify/{id}/{hash}', function (Request $request, $id, $hash) {
+
+            if (! $request->hasValidSignature()) {
+                        return redirect(config('app.frontend_url') . '/verify?status=invalid');
+            }
+
+            $user = \App\Models\User::find($id);
+
+            if (! $user) {
+                        return redirect(config('app.frontend_url') . '/verify?status=notfound');
+            }
+
+            if (! hash_equals((string) $hash, sha1($user->getEmailForVerification()))) {
+                        return redirect(config('app.frontend_url') . '/verify?status=invalid');
+            }
+
+            if (! $user->hasVerifiedEmail()) {
+                        $user->markEmailAsVerified();
+            }
+
+            return redirect(config('app.frontend_url') . '/verify?status=success');
+})->name('verification.verify');
+
+Route::post('/email/verification-notification', [VerificationController::class, 'resend'])
+            ->name('verification.resend');
+            
 Route::middleware('auth:sanctum')->group(function () {
             // Usuario logueado
             Route::get('/user', [UserController::class, 'show']);
