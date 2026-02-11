@@ -16,7 +16,10 @@ return new class extends Migration
             $table->string('nombre');
             $table->string('slug')->unique();
             $table->string('direccion');
-            $table->string('precio_envio');
+            $table->decimal('lat', 10, 8);
+            $table->decimal('lng', 11, 8);
+            $table->decimal('precio_envio', 10, 2);
+            $table->decimal('radio_max', 5, 2);
             $table->string('descripcion')->nullable();
             $table->string('avatar')->nullable();
             $table->string('cover')->nullable();

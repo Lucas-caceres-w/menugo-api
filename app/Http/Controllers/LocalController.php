@@ -55,9 +55,12 @@ class LocalController extends Controller
                     'max:255',
                     'regex:/^[a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s]+$/'
                 ],
-                'descripcion' => 'nullable|string',
-                'precio_envio' => 'required|string',
                 'direccion' => 'required|string',
+                'lat' => 'required|numeric|between:-90,90',
+                'lng' => 'required|numeric|between:-180,180',
+                'radio_max' => 'required|numeric',
+                'precio_envio' => 'required|string',
+                'descripcion' => 'nullable|string',
                 'account' => 'nullable|string',
                 'phone' => 'nullable|string|max:20'
             ]);
@@ -119,6 +122,9 @@ class LocalController extends Controller
                 'descripcion' => $data['descripcion'] ?? '',
                 'precio_envio' => $data['precio_envio'],
                 'direccion' => $data['direccion'],
+                'lat' => $data['lat'],
+                'lng' => $data['lng'],
+                'radio_max' => $data['radio_max'],
                 'account' => $data['account'] ?? '',
                 'phone' => $phone ?? '',
                 'slug' => $slug
@@ -193,7 +199,10 @@ class LocalController extends Controller
             $data = $request->validate([
                 'nombre' => 'required|string|max:255',
                 'descripcion' => 'nullable|string|nullable',
-                'direccion' => 'nullable|string|nullable',
+                'direccion' => 'required|string|nullable',
+                'lat' => 'required|numeric|between:-90,90',
+                'lng' => 'required|numeric|between:-180,180',
+                'radio_max' => 'required|numeric',
                 'precio_envio' => 'nullable|string|nullable',
                 'account' => 'nullable|string|nullable',
                 'phone' => 'nullable|string|nullable'
@@ -218,7 +227,10 @@ class LocalController extends Controller
             $local->update([
                 'nombre' => $data['nombre'],
                 'descripcion' => $data['descripcion'] ?? '',
-                'direccion' => $data['direccion'] ?? '',
+                'direccion' => $data['direccion'],
+                'lat' => $data['lat'],
+                'lng' => $data['lng'],
+                'radio_max' => $data['radio_max'],
                 'precio_envio' => $data['precio_envio'] ?? '',
                 'account' => $data['account'] ?? '',
                 'phone' => $phone ?? '',
@@ -263,7 +275,7 @@ class LocalController extends Controller
             ], 500);
         }
     }
-    
+
     public function saveImages(Request $request, int $localId)
     {
         try {

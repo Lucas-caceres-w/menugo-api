@@ -12,6 +12,23 @@ use Throwable;
 
 class PedidosController extends Controller
 {
+
+    function calculateDistanceKm($lat1, $lng1, $lat2, $lng2)
+    {
+        $earthRadius = 6371; // km
+
+        $dLat = deg2rad($lat2 - $lat1);
+        $dLng = deg2rad($lng2 - $lng1);
+
+        $a = sin($dLat / 2) * sin($dLat / 2) +
+            cos(deg2rad($lat1)) * cos(deg2rad($lat2)) *
+            sin($dLng / 2) * sin($dLng / 2);
+
+        $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
+
+        return $earthRadius * $c;
+    }
+
     /**
      * Listar pedidos (ADMIN del local)
      */
@@ -55,7 +72,9 @@ class PedidosController extends Controller
             $data = $request->validate([
                 'name'    => 'required|string|max:255',
                 'phone'   => 'required|string|max:50',
-                'address' => 'required|string|max:255',
+                'client_address' => 'nullable|string|max:255',
+                'client_lat' => 'nullable|numeric',
+                'client_lng' => 'nullable|numeric',
                 'tipo_entrega' => 'required|in:delivery,retiro',
                 'observacion' => 'nullable|string|max:255',
                 'payment_method'   => 'required|in:cash,transfer',
@@ -86,7 +105,9 @@ class PedidosController extends Controller
                 'local_id'        => $local->id,
                 'client_name'     => $data['name'],
                 'client_phone'    => $data['phone'],
-                'client_address'  => $data['address'],
+                'client_address'  => $data['client_address'],
+                'client_lat'      => $data['client_lat'],
+                'client_lng'      => $data['client_lng'],
                 'tipo_entrega'    => $data['tipo_entrega'],
                 'observacion'     => $data['observacion'],
                 'payment_method'  => $data['payment_method'],
@@ -144,7 +165,20 @@ class PedidosController extends Controller
                 $total += $subtotal;
             }
 
-            $pedido->update(['total' => $total]);
+            $costoEnvio = 0;
+            if ($data['tipo_entrega'] === 'delivery' && $local->lat && $local->lng && $data['client_lat'] && $data['client_lng']) {
+                $distanceKm = $this->calculateDistanceKm(
+                    (float)$local->lat,
+                    (float)$local->lng,
+                    (float)$data['client_lat'],
+                    (float)$data['client_lng']
+                );
+
+                $costoEnvio = round($distanceKm * $local->precio_envio); // precio_envio es por km
+                $total += $costoEnvio;
+            }
+
+            $pedido->update(['total' => $total, 'costo_envio' => $costoEnvio]);
 
             $checkoutUrl = null;
             if (

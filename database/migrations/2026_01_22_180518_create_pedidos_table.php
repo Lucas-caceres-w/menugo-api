@@ -16,9 +16,12 @@ return new class extends Migration
 
             $table->foreignId('local_id')->constrained('locales')->cascadeOnDelete();
             $table->decimal('total', 10, 2);
+            $table->decimal('costo_envio', 10, 2)->nullable();
             $table->string('client_name');
             $table->string('client_phone');
             $table->string('client_address');
+            $table->decimal('client_lat', 10, 8)->nullable();
+            $table->decimal('client_lng', 11, 8)->nullable();
             $table->string('observacion')->nullable();
             $table->string('tipo_entrega')->default('delivery');
             $table->string('payment_method');
