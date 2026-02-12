@@ -33,16 +33,30 @@ class UserController extends Controller
         try {
             $user = Auth::user()->load('subscription');
 
+            $hasLocal = $user->locales()->exists();
+
+            $hasMenu = $user->locales()
+                ->whereHas('categorias.productos')
+                ->exists();
+
+            $hasSharedLink = $user->locales()
+                ->exists();
+
             return response()->json([
                 'user' => $user,
                 'verify' => $user->hasVerifiedEmail(),
+                'hasLocal' => $hasLocal,
+                'hasMenu' => $hasMenu,
+                'hasSharedLink' => $hasSharedLink,
             ], 200);
         } catch (Throwable $e) {
             return response()->json([
                 'message' => 'Error al obtener el usuario',
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
+
 
     /**
      * Crear un usuario

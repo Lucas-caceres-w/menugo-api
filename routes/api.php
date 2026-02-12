@@ -56,9 +56,37 @@ Route::get('/email/verify/{id}/{hash}', function (Request $request, $id, $hash) 
             return redirect(config('app.frontend_url') . '/verify?status=success');
 })->name('verification.verify');
 
-Route::post('/email/verification-notification', [VerificationController::class, 'resend'])
+Route::post('/email/verification-notification', function (Request $request) {
+            try {
+                        $user = $request->user();
+
+                        if (!$user) {
+                                    return response()->json([
+                                                'message' => 'No autenticado',
+                                    ], 401);
+                        }
+
+                        if ($user->hasVerifiedEmail()) {
+                                    return response()->json([
+                                                'message' => 'El email ya está verificado',
+                                    ], 400);
+                        }
+
+                        $user->sendEmailVerificationNotification();
+
+                        return response()->json([
+                                    'message' => 'Email de verificación reenviado',
+                        ], 200);
+            } catch (Throwable $e) {
+                        return response()->json([
+                                    'message' => 'Error al reenviar email de verificación',
+                                    'error' => $e->getMessage(),
+                        ], 500);
+            }
+})->middleware('auth:sanctum')
             ->name('verification.resend');
-            
+
+
 Route::middleware('auth:sanctum')->group(function () {
             // Usuario logueado
             Route::get('/user', [UserController::class, 'show']);

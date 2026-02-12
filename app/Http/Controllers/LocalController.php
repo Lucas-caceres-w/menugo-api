@@ -167,12 +167,21 @@ class LocalController extends Controller
     {
         try {
             $local = Local::where('slug', $slug)
-                ->with(['categorias.productos.extras'])
+                ->with([
+                    'categorias' => function ($query) {
+                        $query->orderBy('orden');
+                    },
+                    'categorias.productos' => function ($query) {
+                        $query->where('activo', true);
+                    },
+                    'categorias.productos.extras'
+                ])
                 ->firstOrFail();
 
+
             return response()->json([
-                'local'  =>  $local,
-                'today'  =>  $local->todaySchedule()
+                'local' => $local,
+                'today' => $local->todaySchedule()
             ], 200);
         } catch (ModelNotFoundException $e) {
             return response()->json([
