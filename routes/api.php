@@ -85,6 +85,7 @@ Route::middleware('auth:sanctum')->group(function () {
             // Categorias de un local
             Route::get('/locales/{localId}/menu', [CategoriasController::class, 'show']);
             Route::post('/locales/{localId}/categorias', [CategoriasController::class, 'store']);
+            Route::put('/categories/reorder', [CategoriasController::class, 'reorder']);
             Route::put('/categorias/{categoriaId}', [CategoriasController::class, 'update']);
             Route::delete('/categorias/{categoriaId}', [CategoriasController::class, 'destroy']);
 

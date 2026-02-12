@@ -139,4 +139,13 @@ class CategoriasController extends Controller
             ], 500);
         }
     }
+    public function reorder(Request $request)
+    {
+        foreach ($request->all() as $item) {
+            Categorias::where('id', $item['id'])
+                ->update(['orden' => $item['orden']]);
+        }
+
+        return response()->json(['message' => 'Orden actualizado']);
+    }
 }
