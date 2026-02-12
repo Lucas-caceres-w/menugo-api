@@ -174,6 +174,14 @@ class PedidosController extends Controller
                     (float)$data['client_lng']
                 );
 
+                if ($distanceKm > $local->radio_max) {
+                    return response()->json([
+                        'message' => 'La dirección está fuera del radio de envío permitido',
+                        'distance' => round($distanceKm, 2),
+                        'radio_maximo' => $local->radio_max,
+                    ], 422);
+                }
+
                 $costoEnvio = round($distanceKm * $local->precio_envio); // precio_envio es por km
                 $total += $costoEnvio;
             }
