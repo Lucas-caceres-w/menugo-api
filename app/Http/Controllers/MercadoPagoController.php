@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Local;
 use App\Models\MercadoPagoTokens;
 use App\Models\Pedidos;
+use App\Models\PreferenceLocal;
 use App\Models\Subscription;
 use App\Models\Transacciones;
 use App\Models\User;
@@ -293,11 +294,26 @@ class MercadoPagoController extends Controller
 
         try {
             // 🔒 Idempotencia
-            if (Transacciones::where('payment_id', $paymentId)->exists()) {
+            $transaccion = Transacciones::where('payment_id', $paymentId)->first();
+            if ($transaccion) {
                 logger('[MP WEBHOOK] Pago duplicado', ['payment_id' => $paymentId]);
                 DB::commit();
                 return response()->json(['message' => 'Pago ya procesado'], 200);
             }
+
+            // 🔑 Obtener token correcto
+            // Si existe transacción, es un pedido → usar token del local
+            if ($transaccion) {
+                $pedido = $transaccion->transaccionable; // relación morph
+                $local = $pedido->local;
+                $token = $this->mpService->getValidAccessToken($local);
+            } else {
+                // Si no existe transacción previa, asumimos suscripción → token de la app
+                $token = env('MP_ACCESS_TOKEN');
+            }
+
+            // 🔍 Consultar el pago completo en MercadoPago
+            $payment = $this->fetchPaymentByPlatform($paymentId, $token);
 
             $status = $payment['status'] ?? null;
             $reference = $payment['external_reference'] ?? null;
@@ -309,20 +325,6 @@ class MercadoPagoController extends Controller
             }
 
             [$tipo, $id] = explode('_', $reference);
-
-            $local = Local::where('id', $id);
-            // 🔑 Seleccionar token según tipo
-            $token = $tipo === 'pedido'
-                ? $this->mpService->getValidAccessToken($local) // token del local
-                : env('MP_ACCESS_TOKEN');          // token de app
-
-            $payment = $this->fetchPaymentByPlatform($paymentId, $token);
-
-            if ($status !== 'approved') {
-                logger('[MP WEBHOOK] Pago no aprobado aún', ['payment_id' => $paymentId, 'status' => $status]);
-                DB::commit();
-                return response()->json(['ignored' => true], 200);
-            }
 
             // 🔎 Routing por tipo
             match ($tipo) {
@@ -341,7 +343,6 @@ class MercadoPagoController extends Controller
             return response()->json(['message' => 'Error al procesar webhook'], 500);
         }
     }
-
     /**
      * Guardar transacción manual (por pago externo)
      */

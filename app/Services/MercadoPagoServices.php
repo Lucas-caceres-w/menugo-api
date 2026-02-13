@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Local;
 use App\Models\MercadoPagoTokens;
 use App\Models\Pedidos;
+use App\Models\PreferenceLocal;
 use Illuminate\Support\Facades\Http;
 use Carbon\Carbon;
 use Exception;
@@ -162,6 +163,12 @@ class MercadoPagoServices
                                                 'auto_return' => 'approved',
 
                                                 'statement_descriptor' => 'MenuGo',
+                                    ]);
+
+                                    PreferenceLocal::create([
+                                                'preference_id' => $preference->id, // o $preference->init_point si querés
+                                                'local_id'      => $local->id,
+                                                'type'          => 'pedido'
                                     ]);
 
                                     return $preference;
