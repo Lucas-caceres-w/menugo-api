@@ -44,7 +44,7 @@ class UserController extends Controller
     public function show()
     {
         try {
-            $user = Auth::user()->load();
+            $user = Auth::user();
             $subscription = $user->activeSubscription(); // instancia o null
 
             $hasLocal = $user->locales()->exists();
