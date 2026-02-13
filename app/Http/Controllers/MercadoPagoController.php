@@ -269,17 +269,31 @@ class MercadoPagoController extends Controller
      */
     public function webhook(Request $request)
     {
-        logger('[MP WEBHOOK] Evento recibido', [
-            'headers' => $request->headers->all(),
-            'body' => $request->all(),
+        logger('[MP WEBHOOK] Evento recibido', $request->all());
+
+        // 🔎 Detectar tipo de evento correctamente
+        $type = $request->input('type')
+            ?? $request->input('topic')
+            ?? ($request->input('action') ? explode('.', $request->input('action'))[0] : null);
+
+        // 🔎 Detectar payment id correctamente
+        $paymentId =
+            $request->input('data.id')
+            ?? $request->input('data_id')
+            ?? $request->input('id');
+
+        logger('[MP WEBHOOK] Detectado', [
+            'type' => $type,
+            'payment_id' => $paymentId
         ]);
 
-        $type = $request->input('type');
-        $data = $request->input('data');
+        if ($type !== 'payment' || !$paymentId) {
+            logger('[MP WEBHOOK] Evento ignorado');
+            return response()->json(['ignored' => true], 200);
+        }
 
-        logger('[MP WEBHOOK] Tipo de evento', [
-            'type' => $type,
-            'data_id' => $data['id'] ?? null,
+        logger('[MP WEBHOOK] Procesando payment', [
+            'payment_id' => $paymentId
         ]);
 
         if ($type !== 'payment' || !isset($data['id'])) {
