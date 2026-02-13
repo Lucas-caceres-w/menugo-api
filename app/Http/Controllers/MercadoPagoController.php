@@ -289,6 +289,7 @@ class MercadoPagoController extends Controller
                 'status_detail' => $payment['status_detail'] ?? null,
                 'metadata' => $payment['metadata'] ?? [],
                 'amount' => $payment['transaction_amount'] ?? null,
+                'external_reference' => $payment['external_reference'] ?? null,
             ]);
 
             $metadata = $payment['metadata'] ?? [];
@@ -299,7 +300,7 @@ class MercadoPagoController extends Controller
                 return response()->json(['ignored' => true], 200);
             }
 
-            [$type, $id] = explode('_', $reference);
+            [$tipo, $id] = explode('_', $reference);
 
             if (!isset($metadata['type'])) {
                 logger('Payment data', $payment);
@@ -312,7 +313,7 @@ class MercadoPagoController extends Controller
                 'status' => $status,
             ]);
 
-            match ($type) {
+            match ($tipo) {
                 'pedido'       => $this->handlePedidoPayment($payment),
                 'subscription' => $this->handleSubscriptionPayment($payment),
                 default        => throw new \Exception('Tipo de pago inválido'),

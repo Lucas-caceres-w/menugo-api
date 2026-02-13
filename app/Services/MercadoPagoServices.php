@@ -143,9 +143,9 @@ class MercadoPagoServices
                                                 'external_reference' => "pedido_{$pedido->id}",
 
                                                 'back_urls' => [
-                                                            'success' => env('FRONTEND_URL') . '/pedido/success',
-                                                            'failure' => env('FRONTEND_URL') . '/pedido/failure',
-                                                            'pending' => env('FRONTEND_URL') . '/pedido/pending',
+                                                            'success' => env('FRONTEND_URL') . '/pedido/success?id=' . $pedido->id,
+                                                            'failure' => env('FRONTEND_URL') . '/pedido/failure?id=' . $pedido->id,
+                                                            'pending' => env('FRONTEND_URL') . '/pedido/pending?id=' . $pedido->id,
                                                 ],
 
                                                 'notification_url' => env('APP_URL') . '/api/webhooks/mercadopago',
