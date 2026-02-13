@@ -11,7 +11,7 @@ return [
                         'max_locals' => 1,
             ],
             'basic' => [
-                        'price' => 20000,
+                        'price' => 1,
                         'max_locals' => 1,
             ],
             'premium' => [
