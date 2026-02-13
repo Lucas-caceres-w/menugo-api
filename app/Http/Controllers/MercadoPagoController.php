@@ -370,7 +370,7 @@ class MercadoPagoController extends Controller
             ),
         ]);
     }
-
+    
     public function iniciarSubscripcion(Request $request)
     {
         try {
@@ -384,41 +384,39 @@ class MercadoPagoController extends Controller
                 ], 400);
             }
 
-            $subscription = $user->activeSubscription();
+            // Suscripción activa actual
+            $activeSubscription = $user->activeSubscription();
 
-            if ($subscription) {
-                if ($plan['price'] <= $subscription->price) {
-                    return response()->json([
-                        'message' => 'Solo se permite subir de plan'
-                    ], 400);
-                }
-
-                $amount = $this->calculateUpgradeAmount($subscription, $plan);
-            } else {
-                $amount = $plan['price'];
+            // Solo permitir subir de plan
+            if ($activeSubscription && $plan['price'] <= $activeSubscription->price) {
+                return response()->json([
+                    'message' => 'Solo se permite subir de plan'
+                ], 400);
             }
 
-            $active = $user->activeSubscription();
+            // Calcular monto a cobrar
+            $amount = $activeSubscription
+                ? $this->calculateUpgradeAmount($activeSubscription, $plan)
+                : $plan['price'];
 
-            if ($active) {
-                $active->update([
+            // Finalizar suscripción anterior
+            if ($activeSubscription) {
+                $activeSubscription->update([
                     'ends_at' => now(),
+                    'status'  => 'ended', // opcional: marcar como finalizada
                 ]);
             }
 
-            $subscription = Subscription::create([
+            // Crear nueva suscripción pendiente
+            $newSubscription = Subscription::create([
                 'user_id' => $user->id,
                 'plan' => $planKey,
                 'status' => 'pending',
                 'price' => $plan['price'],
             ]);
 
-
-            // 🔐 Token FIJO de la plataforma
-            MercadoPagoConfig::setAccessToken(
-                env('MP_ACCESS_TOKEN')
-            );
-
+            // 🔐 Configurar MercadoPago
+            MercadoPagoConfig::setAccessToken(env('MP_ACCESS_TOKEN'));
             MercadoPagoConfig::setRuntimeEnviroment(
                 app()->environment('production')
                     ? MercadoPagoConfig::SERVER
@@ -434,41 +432,33 @@ class MercadoPagoController extends Controller
                     'unit_price' => (float) $amount,
                     'currency_id' => 'ARS',
                 ]],
-
                 'payer' => [
                     'name'  => $user->name,
                     'email' => $user->email,
                 ],
-
-                'external_reference' => "subscription_{$user->id}_{$planKey}",
-
+                'external_reference' => "subscription_{$newSubscription->id}_{$planKey}",
                 'metadata' => [
-                    'type'            => 'subscription',
-                    'action'          => $subscription ? 'upgrade' : 'new',
-                    'user_id'         => $user->id,
-                    'from_plan'       => $subscription?->plan,
-                    'to_plan'         => $planKey,
+                    'type' => 'subscription',
+                    'action' => $activeSubscription ? 'upgrade' : 'new',
+                    'user_id' => $user->id,
+                    'from_plan' => $activeSubscription?->plan,
+                    'to_plan' => $planKey,
                     'original_amount' => $plan['price'],
-                    'charged_amount'  => $amount,
+                    'charged_amount' => $amount,
                 ],
-
                 'back_urls' => [
                     'success' => env('FRONTEND_URL') . '/dashboard/subscription?status=success',
                     'pending' => env('FRONTEND_URL') . '/dashboard/subscription?status=pending',
                     'failure' => env('FRONTEND_URL') . '/dashboard/subscription?status=failure',
                 ],
-
                 'auto_return' => 'approved',
-
-                'notification_url' =>
-                env('APP_URL') . '/api/mercadopago/webhook',
+                'notification_url' => env('APP_URL') . '/api/mercadopago/webhook',
             ]);
 
             return response()->json([
                 'checkout_url' => $preference->init_point,
             ]);
         } catch (MPApiException $e) {
-            // 🔥 Error propio de MercadoPago
             logger('MercadoPago API error', [
                 'status' => $e->getApiResponse()?->getStatusCode(),
                 'body'   => $e->getApiResponse()?->getContent(),
@@ -479,7 +469,6 @@ class MercadoPagoController extends Controller
                 'code' => 'MP_API_ERROR'
             ], 502);
         } catch (\Throwable $e) {
-            // 🔥 Error inesperado
             logger('Error iniciarSubscripcion', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
