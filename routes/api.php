@@ -128,7 +128,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
             // Pedidos (para locales, ver todos los pedidos recibidos)
             Route::get('/pedidos/admin/{localId}', [PedidosController::class, 'index']);
-            Route::put('/pedidos/{pedidoId}/estado', [PedidosController::class, 'cambiarEstado']); // pendiente, aprobado, cancelado, pagado
+            Route::post('/pedidos/update/{pedidoId}', [PedidosController::class, 'update']);
 
             // MercadoPago - vincular, refrescar token, preferencias
             Route::post('/mercadopago/oauth', [MercadoPagoController::class, 'oauth']);

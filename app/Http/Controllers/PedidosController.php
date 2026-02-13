@@ -91,17 +91,6 @@ class PedidosController extends Controller
 
             $local = Local::findOrFail($localId);
 
-            $estado = match (true) {
-                $data['payment_method'] === 'cash'
-                => 'pendiente',
-
-                $data['transfer_type'] === 'manual'
-                => 'pendiente_pago',
-
-                $data['transfer_type'] === 'mercadopago'
-                => 'pendiente_pago',
-            };
-
             $pedido = Pedidos::create([
                 'local_id'        => $local->id,
                 'client_name'     => $data['name'],
@@ -113,7 +102,7 @@ class PedidosController extends Controller
                 'observacion'     => $data['observacion'],
                 'payment_method'  => $data['payment_method'],
                 'payment_status'  => 'unpaid',
-                'estado'          => $estado,
+                'estado'          => 'recibido',
                 'total'           => 0,
             ]);
 
@@ -290,23 +279,33 @@ class PedidosController extends Controller
     /**
      * Actualizar estado del pedido (ADMIN)
      */
-    public function update(Request $request, Pedidos $pedido)
+    public function update(Request $request, $pedidoId)
     {
         try {
+
+            $pedido = Pedidos::findOrFail($pedidoId);
+
             if ($pedido->local->user_id !== $request->user()->id) {
                 abort(403, 'No autorizado');
             }
 
             $data = $request->validate([
-                'estado' => 'required|in:pendiente,aprobado,pagado,cancelado',
+                'estado' => 'sometimes|in:recibido,preparacion,enviado,cancelado',
+                'payment_status' => 'sometimes|in:unpaid,approved,rejected',
             ]);
+
+            // Evitar cambiar payment_status si ya fue aprobado
+            if (isset($data['payment_status']) && $pedido->payment_status === 'approved') {
+                unset($data['payment_status']);
+            }
 
             $pedido->update($data);
 
-            return response()->json($pedido, 200);
+            return response()->json(['success' => true], 200);
         } catch (Throwable $e) {
             return response()->json([
                 'message' => 'Error al actualizar el pedido',
+                'error' => $e->getMessage(),
             ], 500);
         }
     }

@@ -6,20 +6,20 @@ return [
                         'max_locals' => 1,
             ],
             'test' => [
-                        'duration_days' => 60,
+                        'duration_days' => 30,
                         'price' => 1,
                         'max_locals' => 1,
             ],
             'basic' => [
-                        'price' => 15000,
+                        'price' => 20000,
                         'max_locals' => 1,
             ],
             'premium' => [
-                        'price' => 20000,
+                        'price' => 30000,
                         'max_locals' => 3,
             ],
             'full' => [
-                        'price' => 35000,
+                        'price' => 50000,
                         'max_locals' => null,
             ],
 ];
