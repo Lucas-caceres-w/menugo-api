@@ -54,11 +54,17 @@ class MercadoPagoController extends Controller
         ]);
 
         if ($payment['status'] === 'approved') {
-            $pedido->update(['estado' => 'pagado']);
+            $pedido->update([
+                'estado' => 'pagado',
+                'payment_status' => 'approved'
+            ]);
         }
 
         if ($payment['status'] === 'rejected') {
-            $pedido->update(['estado' => 'cancelado']);
+            $pedido->update([
+                'estado' => 'cancelado',
+                'payment_status' => 'rejected'
+            ]);
         }
     }
 
