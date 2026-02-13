@@ -24,36 +24,52 @@ class MercadoPagoController extends Controller
     protected $mpService;
     protected function handlePedidoPayment(array $payment)
     {
+        logger('[MP PEDIDO] Entró a handlePedidoPayment', [
+            'payment_id' => $payment['id'],
+            'reference' => $payment['external_reference'] ?? null,
+        ]);
+
         $reference = $payment['external_reference'] ?? null;
 
         if (!$reference) {
-            logger('Pago sin external_reference', [
-                'payment_id' => $payment['id'],
-            ]);
+            logger('[MP PEDIDO] Sin external_reference');
             return;
         }
 
         [$type, $pedidoId] = explode('_', $reference);
 
-        $pedido = Pedidos::findOrFail($pedidoId);
+        logger('[MP PEDIDO] Buscando pedido', [
+            'pedido_id' => $pedidoId
+        ]);
+
+        $pedido = Pedidos::find($pedidoId);
+
         if (!$pedido) {
-            logger('Pedido no encontrado', [
+            logger('[MP PEDIDO] Pedido no encontrado', [
                 'pedido_id' => $pedidoId,
-                'payment_id' => $payment['id'],
             ]);
             return;
         }
+
+        logger('[MP PEDIDO] Pedido encontrado, creando transacción', [
+            'pedido_id' => $pedido->id,
+            'status' => $payment['status']
+        ]);
 
         $pedido->transacciones()->create([
             'total' => $payment['transaction_amount'],
             'medio_pago' => 'mercadopago',
             'payment_id' => $payment['id'],
             'estado' => $payment['status'],
-            'referencia_externa' => $payment['external_reference'] ?? null,
+            'referencia_externa' => $reference,
             'fecha_pago' => $payment['status'] === 'approved' ? now() : null,
         ]);
 
         if ($payment['status'] === 'approved') {
+            logger('[MP PEDIDO] Marcando pedido como PAGADO', [
+                'pedido_id' => $pedido->id
+            ]);
+
             $pedido->update([
                 'estado' => 'pagado',
                 'payment_status' => 'approved'
@@ -61,6 +77,10 @@ class MercadoPagoController extends Controller
         }
 
         if ($payment['status'] === 'rejected') {
+            logger('[MP PEDIDO] Marcando pedido como CANCELADO', [
+                'pedido_id' => $pedido->id
+            ]);
+
             $pedido->update([
                 'estado' => 'cancelado',
                 'payment_status' => 'rejected'
@@ -253,6 +273,7 @@ class MercadoPagoController extends Controller
             'headers' => $request->headers->all(),
             'body' => $request->all(),
         ]);
+
         $type = $request->input('type');
         $data = $request->input('data');
 
@@ -262,6 +283,7 @@ class MercadoPagoController extends Controller
         ]);
 
         if ($type !== 'payment' || !isset($data['id'])) {
+            logger('[MP WEBHOOK] Evento ignorado (no es payment)');
             return response()->json(['message' => 'Evento no relevante'], 200);
         }
 
@@ -270,9 +292,14 @@ class MercadoPagoController extends Controller
         DB::beginTransaction();
 
         try {
+
+            logger('[MP WEBHOOK] Procesando payment', [
+                'payment_id' => $paymentId
+            ]);
+
             // 🔒 Idempotencia
             if (Transacciones::where('payment_id', $paymentId)->exists()) {
-                logger('[MP WEBHOOK] Pago duplicado (idempotencia)', [
+                logger('[MP WEBHOOK] Pago duplicado', [
                     'payment_id' => $paymentId,
                 ]);
 
@@ -283,47 +310,74 @@ class MercadoPagoController extends Controller
             // 🔍 Obtener pago desde MP
             $payment = $this->fetchPaymentByPlatform($paymentId);
 
-            logger('[MP WEBHOOK] Pago obtenido desde MP', [
+            logger('[MP WEBHOOK] Pago obtenido', [
                 'payment_id' => $paymentId,
                 'status' => $payment['status'] ?? null,
-                'status_detail' => $payment['status_detail'] ?? null,
-                'metadata' => $payment['metadata'] ?? [],
-                'amount' => $payment['transaction_amount'] ?? null,
                 'external_reference' => $payment['external_reference'] ?? null,
+                'metadata' => $payment['metadata'] ?? [],
             ]);
 
-            $metadata = $payment['metadata'] ?? [];
             $status = $payment['status'];
             $reference = $payment['external_reference'] ?? null;
 
-            if ($status !== 'approved' || !$reference) {
+            if (!$reference) {
+                logger('[MP WEBHOOK] SIN external_reference — NO SE PUEDE RUTEAR', [
+                    'payment_id' => $paymentId
+                ]);
+
+                DB::commit();
                 return response()->json(['ignored' => true], 200);
+            }
+
+            if ($status !== 'approved') {
+                logger('[MP WEBHOOK] Pago no aprobado aún', [
+                    'payment_id' => $paymentId,
+                    'status' => $status
+                ]);
+
+                DB::commit();
+                return response()->json(['ignored' => true], 200);
+            }
+
+            // 🔎 Detectar tipo por reference
+            if (!str_contains($reference, '_')) {
+                logger('[MP WEBHOOK] Reference inválida (sin prefijo)', [
+                    'reference' => $reference
+                ]);
+
+                throw new \Exception('Reference inválida');
             }
 
             [$tipo, $id] = explode('_', $reference);
 
-            if (!isset($metadata['type'])) {
-                logger('Payment data', $payment);
-            }
-
-            // 🧭 Router por tipo de pago
             logger('[MP WEBHOOK] Routing por reference', [
-                'payment_id' => $paymentId,
-                'type' => $metadata['type'] ?? null,
-                'status' => $status,
+                'tipo' => $tipo,
+                'id' => $id,
+                'reference' => $reference,
             ]);
 
             match ($tipo) {
                 'pedido'       => $this->handlePedidoPayment($payment),
                 'subscription' => $this->handleSubscriptionPayment($payment),
-                default        => throw new \Exception('Tipo de pago inválido'),
+                default        => throw new \Exception('Tipo de pago inválido: ' . $tipo),
             };
 
             DB::commit();
 
+            logger('[MP WEBHOOK] Webhook procesado OK', [
+                'payment_id' => $paymentId
+            ]);
+
             return response()->json(['message' => 'Webhook procesado']);
         } catch (\Throwable $e) {
+
             DB::rollBack();
+
+            logger('[MP WEBHOOK ERROR]', [
+                'error' => $e->getMessage(),
+                'payment_id' => $paymentId ?? null,
+            ]);
+
             report($e);
 
             return response()->json([

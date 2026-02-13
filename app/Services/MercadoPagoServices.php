@@ -125,7 +125,7 @@ class MercadoPagoServices
                                     }
 
                                     logger()->info('MP back_urls', [
-                                                'success' => env('FRONTEND_URL') . '/pedido/success',
+                                                'success' => env('FRONTEND_URL') . '/pedido/success?id=' . $pedido->id,
                                     ]);
 
 
