@@ -62,10 +62,12 @@ class User extends Authenticatable implements MustVerifyEmail
     }
     public function activeSubscription(): ?Subscription
     {
-        return Subscription::where('status', 'active')
+        return $this->subscription()
+            ->where('status', 'active')
             ->where(function ($q) {
                 $q->whereNull('ends_at')
                     ->orWhere('ends_at', '>=', now());
-            });
+            })
+            ->first();
     }
 }

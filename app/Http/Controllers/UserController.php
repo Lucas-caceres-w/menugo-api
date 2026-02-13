@@ -44,7 +44,8 @@ class UserController extends Controller
     public function show()
     {
         try {
-            $user = Auth::user()->load('activeSubscription');
+            $user = Auth::user()->load();
+            $subscription = $user->activeSubscription(); // instancia o null
 
             $hasLocal = $user->locales()->exists();
 
@@ -57,6 +58,7 @@ class UserController extends Controller
 
             return response()->json([
                 'user' => $user,
+                'subscription' => $subscription,
                 'verify' => $user->hasVerifiedEmail(),
                 'hasLocal' => $hasLocal,
                 'hasMenu' => $hasMenu,
