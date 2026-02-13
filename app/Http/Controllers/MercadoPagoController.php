@@ -296,13 +296,6 @@ class MercadoPagoController extends Controller
             'payment_id' => $paymentId
         ]);
 
-        if ($type !== 'payment' || !isset($data['id'])) {
-            logger('[MP WEBHOOK] Evento ignorado (no es payment)');
-            return response()->json(['message' => 'Evento no relevante'], 200);
-        }
-
-        $paymentId = $data['id'];
-
         DB::beginTransaction();
 
         try {
