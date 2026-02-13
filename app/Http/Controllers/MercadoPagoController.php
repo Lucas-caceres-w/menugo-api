@@ -411,8 +411,6 @@ class MercadoPagoController extends Controller
                 'plan' => $planKey,
                 'status' => 'pending',
                 'price' => $plan['price'],
-                'starts_at' => '',
-                'ends_at' => ''
             ]);
 
 

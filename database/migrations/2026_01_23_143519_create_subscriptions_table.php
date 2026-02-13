@@ -18,7 +18,7 @@ return new class extends Migration
                 ->constrained()
                 ->cascadeOnDelete();
             $table->enum('plan', ['trial', 'basic', 'premium', 'full']); // trial | basic | premium | full
-            $table->timestamp('starts_at');
+            $table->timestamp('starts_at')->nullable();
             $table->timestamp('ends_at')->nullable();
             $table->integer('price')->nullable();
             $table->string('currency')->default('ARS');
