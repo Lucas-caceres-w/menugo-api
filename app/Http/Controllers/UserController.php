@@ -43,7 +43,7 @@ class UserController extends Controller
     public function show()
     {
         try {
-            $user = Auth::user()->load('activeSubscription');
+            $user = Auth::user()->load('subscription');
 
             $hasLocal = $user->locales()->exists();
 
