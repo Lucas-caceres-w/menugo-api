@@ -157,7 +157,7 @@ class MercadoPagoServices
                                                             'pending' => env('FRONTEND_URL') . '/pedido/pending?id=' . $pedido->id,
                                                 ],
 
-                                                'notification_url' => env('APP_URL') . '/api/webhooks/mercadopago',
+                                                'notification_url' => env('APP_URL') . '/api/mercadopago/webhook',
 
                                                 'auto_return' => 'approved',
 
