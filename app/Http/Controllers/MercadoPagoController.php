@@ -25,23 +25,13 @@ class MercadoPagoController extends Controller
     protected $mpService;
     protected function handlePedidoPayment(array $payment)
     {
-        logger('[MP PEDIDO] Entró a handlePedidoPayment', [
-            'payment_id' => $payment['id'],
-            'reference' => $payment['external_reference'] ?? null,
-        ]);
-
         $reference = $payment['external_reference'] ?? null;
 
         if (!$reference) {
-            logger('[MP PEDIDO] Sin external_reference');
             return;
         }
 
         [$type, $pedidoId] = explode('_', $reference);
-
-        logger('[MP PEDIDO] Buscando pedido', [
-            'pedido_id' => $pedidoId
-        ]);
 
         $pedido = Pedidos::find($pedidoId);
 
@@ -52,10 +42,10 @@ class MercadoPagoController extends Controller
             return;
         }
 
-        logger('[MP PEDIDO] Pedido encontrado, creando transacción', [
-            'pedido_id' => $pedido->id,
-            'status' => $payment['status']
-        ]);
+        // ✅ Idempotencia: si ya existe la transacción, no hacer nada
+        if ($pedido->transacciones()->where('payment_id', $payment['id'])->exists()) {
+            return;
+        }
 
         $pedido->transacciones()->create([
             'total' => $payment['transaction_amount'],
@@ -67,9 +57,6 @@ class MercadoPagoController extends Controller
         ]);
 
         if ($payment['status'] === 'approved') {
-            logger('[MP PEDIDO] Marcando pedido como PAGADO', [
-                'pedido_id' => $pedido->id
-            ]);
 
             $pedido->update([
                 'estado' => 'pagado',
@@ -78,10 +65,6 @@ class MercadoPagoController extends Controller
         }
 
         if ($payment['status'] === 'rejected') {
-            logger('[MP PEDIDO] Marcando pedido como CANCELADO', [
-                'pedido_id' => $pedido->id
-            ]);
-
             $pedido->update([
                 'estado' => 'cancelado',
                 'payment_status' => 'rejected'
@@ -296,7 +279,6 @@ class MercadoPagoController extends Controller
             // 🔒 Idempotencia
             $transaccion = Transacciones::where('payment_id', $paymentId)->first();
             if ($transaccion) {
-                logger('[MP WEBHOOK] Pago duplicado', ['payment_id' => $paymentId]);
                 DB::commit();
                 return response()->json(['message' => 'Pago ya procesado'], 200);
             }
@@ -315,11 +297,9 @@ class MercadoPagoController extends Controller
             // 🔍 Consultar el pago completo en MercadoPago
             $payment = $this->fetchPaymentByPlatform($paymentId, $token);
 
-            $status = $payment['status'] ?? null;
             $reference = $payment['external_reference'] ?? null;
 
             if (!$reference || !str_contains($reference, '_')) {
-                logger('[MP WEBHOOK] Reference inválida o ausente', ['reference' => $reference]);
                 DB::commit();
                 return response()->json(['ignored' => true], 200);
             }
@@ -334,7 +314,6 @@ class MercadoPagoController extends Controller
             };
 
             DB::commit();
-            logger('[MP WEBHOOK] Webhook procesado OK', ['payment_id' => $paymentId]);
             return response()->json(['message' => 'Webhook procesado']);
         } catch (\Throwable $e) {
             DB::rollBack();
