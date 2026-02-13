@@ -1,10 +1,8 @@
 <?php
 
 // Listado de productos y categorías (para clientes)
-
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Auth\RegisterController;
-use App\Http\Controllers\Auth\VerificationController;
 use App\Http\Controllers\CategoriasController;
 use App\Http\Controllers\LocalClosuresController;
 use App\Http\Controllers\MercadoPagoController;
@@ -20,15 +18,20 @@ Route::get('/locales/{localId}/categorias', [CategoriasController::class, 'index
 Route::get('/categorias/{categoriaId}/productos', [ProductosController::class, 'index']);
 Route::get('/productos/{productoId}', [ProductosController::class, 'show']);
 Route::get('/local/{slug}', [LocalController::class, 'showClientLocal']);
+
 // Crear pedido por cliente (no requiere auth, se puede pasar email/nombre en el request)
 Route::post('/pedidos/{localId}', [PedidosController::class, 'store']);
+
 // Mercado Pago webhooks (MP llama a esto)
 Route::post('/mercadopago/webhook', [MercadoPagoController::class, 'webhook']);
+
 // Opcional: mostrar estado del pedido para cliente
 Route::get('/pedidos/{pedidoId}', [PedidosController::class, 'showCliente']);
+
 //Login & Register
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/register', [RegisterController::class, 'register']);
+
 //Get settings
 Route::get('/mercadopago/{localId}/settings', [MercadoPagoController::class, 'settings']);
 
@@ -89,6 +92,7 @@ Route::post('/email/verification-notification', function (Request $request) {
 
 Route::middleware('auth:sanctum')->group(function () {
             // Usuario logueado
+            Route::get('/me', [UserController::class, 'auth']);
             Route::get('/user', [UserController::class, 'show']);
             Route::put('/user', [UserController::class, 'update']);
             Route::post('/user', [UserController::class, 'store']); // opcional, creación interna

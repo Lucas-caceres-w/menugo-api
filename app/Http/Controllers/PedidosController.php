@@ -85,7 +85,8 @@ class PedidosController extends Controller
                 'items.*.cantidad'   => 'required|integer|min:1',
 
                 'items.*.extras'      => 'nullable|array',
-                'items.*.extras.*'    => 'integer',
+                'items.*.extras.*.extra_id' => 'required|integer|exists:producto_extras,id',
+                'items.*.extras.*.cantidad' => 'required|integer|min:1',
             ]);
 
             $local = Local::findOrFail($localId);
@@ -105,9 +106,9 @@ class PedidosController extends Controller
                 'local_id'        => $local->id,
                 'client_name'     => $data['name'],
                 'client_phone'    => $data['phone'],
-                'client_address'  => $data['client_address'],
-                'client_lat'      => $data['client_lat'],
-                'client_lng'      => $data['client_lng'],
+                'client_address'  => $data['client_address'] ?? '',
+                'client_lat'      => $data['client_lat'] ?? null,
+                'client_lng'      => $data['client_lng'] ?? null,
                 'tipo_entrega'    => $data['tipo_entrega'],
                 'observacion'     => $data['observacion'],
                 'payment_method'  => $data['payment_method'],
@@ -140,18 +141,28 @@ class PedidosController extends Controller
                 ]);
 
                 if (!empty($item['extras'])) {
-                    $extras = $producto->extras()
-                        ->whereIn('id', $item['extras'])
-                        ->get();
+                    $ids = array_column($item['extras'], 'extra_id');
 
-                    foreach ($extras as $extra) {
+                    $extrasDB = $producto->extras()
+                        ->whereIn('id', $ids)
+                        ->get()
+                        ->keyBy('id');
+
+                    foreach ($item['extras'] as $extraData) {
+
+                        if (!isset($extrasDB[$extraData['extra_id']])) continue;
+
+                        $extra = $extrasDB[$extraData['extra_id']];
+                        $cantidadExtra = $extraData['cantidad'];
+
                         $pedidoItem->extras()->create([
                             'extra_id'     => $extra->id,
                             'extra_nombre' => $extra->nombre,
                             'extra_precio' => $extra->precio,
+                            'cantidad'     => $cantidadExtra,
                         ]);
 
-                        $extrasTotal += $extra->precio;
+                        $extrasTotal += $extra->precio * $cantidadExtra;
                     }
                 }
 
@@ -276,7 +287,6 @@ class PedidosController extends Controller
             ], 500);
         }
     }
-
     /**
      * Actualizar estado del pedido (ADMIN)
      */

@@ -11,6 +11,7 @@ class PedidoItemExtra extends Model
         'extra_id',
         'extra_nombre',
         'extra_precio',
+        'cantidad'
     ];
     public function item()
     {

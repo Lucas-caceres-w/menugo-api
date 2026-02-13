@@ -28,6 +28,7 @@ return new class extends Migration
             // Snapshot del extra
             $table->string('extra_nombre');
             $table->integer('extra_precio'); // precio unitario del extra
+            $table->integer('cantidad'); // cantidad seleccionada
 
             $table->timestamps();
         });

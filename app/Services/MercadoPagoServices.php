@@ -140,7 +140,7 @@ class MercadoPagoServices
                                                             'local_id'  => $local->id,
                                                 ],
 
-                                                'external_reference' => (string) $pedido->id,
+                                                'external_reference' => "pedido_{$pedido->id}",
 
                                                 'back_urls' => [
                                                             'success' => env('FRONTEND_URL') . '/pedido/success',

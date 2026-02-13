@@ -14,6 +14,18 @@ class UserController extends Controller
     /**
      * Listar usuarios
      */
+
+    public function auth(Request $request)
+    {
+        $user = $request->user();
+
+        return response()->json([
+            'id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'plan' => $user->plan,
+        ]);
+    }
     public function index()
     {
         try {
