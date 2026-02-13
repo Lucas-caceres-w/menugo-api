@@ -115,6 +115,15 @@ class MercadoPagoServices
                                                 ];
                                     })->toArray();
 
+                                    if ($pedido->costo_envio > 0) {
+                                                $items[] = [
+                                                            'title'       => 'Costo de envío',
+                                                            'quantity'    => 1,
+                                                            'unit_price'  => (float) $pedido->costo_envio,
+                                                            'currency_id' => 'ARS',
+                                                ];
+                                    }
+
                                     logger()->info('MP back_urls', [
                                                 'success' => env('FRONTEND_URL') . '/pedido/success',
                                     ]);
