@@ -66,7 +66,6 @@ class User extends Authenticatable implements MustVerifyEmail
             ->where(function ($q) {
                 $q->whereNull('ends_at')
                     ->orWhere('ends_at', '>=', now());
-            })
-            ->first();
+            });
     }
 }
