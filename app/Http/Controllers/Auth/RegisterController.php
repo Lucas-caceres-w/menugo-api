@@ -24,6 +24,14 @@ class RegisterController extends Controller
                 'password' => 'required|string|min:8',
             ]);
 
+            // Verificar si el email ya existe
+            if (User::where('email', $data['email'])->exists()) {
+                return response()->json([
+                    'message' => 'El email ya está en uso',
+                    'errors' => ['email' => ['El email ingresado ya está registrado']]
+                ], 422);
+            }
+
             $user = User::create([
                 'name' => $data['name'],
                 'email' => $data['email'],
@@ -46,6 +54,7 @@ class RegisterController extends Controller
             ], 201);
         } catch (Throwable $e) {
             report($e);
+            logger($e);
 
             return response()->json([
                 'message' => 'Error al registrar usuario'

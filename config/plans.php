@@ -6,7 +6,7 @@ return [
                         'max_locals' => 1,
             ],
             'basic' => [
-                        'price' => 1,
+                        'price' => 20000,
                         'max_locals' => 1,
             ],
             'premium' => [
