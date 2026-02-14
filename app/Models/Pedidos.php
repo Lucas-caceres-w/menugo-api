@@ -13,6 +13,7 @@ class Pedidos extends Model
         'client_address',
         'client_lat',
         'costo_envio',
+        'tipo_entrega',
         'client_lng',
         'observacion',
         'payment_method',
