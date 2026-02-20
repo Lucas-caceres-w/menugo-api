@@ -70,8 +70,8 @@ class PedidosController extends Controller
     {
         try {
             $data = $request->validate([
-                'name'    => 'required|string|max:255',
-                'phone'   => 'required|string|max:50',
+                'client_name'    => 'required|string|max:255',
+                'client_phone'   => 'required|string|max:50',
                 'client_address' => 'nullable|string|max:255',
                 'client_lat' => 'nullable|numeric',
                 'client_lng' => 'nullable|numeric',
@@ -93,8 +93,8 @@ class PedidosController extends Controller
 
             $pedido = Pedidos::create([
                 'local_id'        => $local->id,
-                'client_name'     => $data['name'],
-                'client_phone'    => $data['phone'],
+                'client_name'     => $data['client_name'],
+                'client_phone'    => $data['client_phone'],
                 'client_address'  => $data['client_address'] ?? '',
                 'client_lat'      => $data['client_lat'] ?? null,
                 'client_lng'      => $data['client_lng'] ?? null,
