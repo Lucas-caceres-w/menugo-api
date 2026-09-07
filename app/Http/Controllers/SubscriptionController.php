@@ -37,15 +37,38 @@ class SubscriptionController extends Controller
      */
     public function show(Request $request)
     {
-        $subscription = $request->user()->subscription;
+        $subscription = $request->user()->activeSubscription();
 
         if (! $subscription) {
             return response()->json([
-                'message' => 'No active subscription'
+                'message' => 'No tienes una suscripción activa',
             ], 404);
         }
 
-        return new SubscriptionResource($subscription);
+        return response()->json([
+            'plan' => $subscription->plan,
+        ]);
+    }
+
+    public function cancel(Request $request)
+    {
+        $subscription = $request->user()->activeSubscription();
+
+        if (! $subscription) {
+            return response()->json([
+                'message' => 'No tienes una suscripción activa',
+            ], 404);
+        }
+
+        $subscription->update([
+            'status' => 'cancelled',
+            'ends_at' => now(),
+        ]);
+
+        return response()->json([
+            'message' => 'Suscripción desactivada correctamente',
+            'subscription' => new SubscriptionResource($subscription->fresh()),
+        ]);
     }
 
     /**

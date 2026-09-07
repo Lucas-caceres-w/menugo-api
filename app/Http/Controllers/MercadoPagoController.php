@@ -416,25 +416,23 @@ class MercadoPagoController extends Controller
             // Suscripción activa actual
             $activeSubscription = $user->activeSubscription();
 
-            // Solo permitir subir de plan
-            if ($activeSubscription && $plan['price'] <= $activeSubscription->price) {
+            if ($activeSubscription && $planKey === $activeSubscription->plan) {
                 return response()->json([
-                    'message' => 'Solo se permite subir de plan'
+                    'message' => 'Ya tienes este plan activo'
                 ], 400);
+            }
+
+            if ($activeSubscription) {
+                return response()->json([
+                    'message' => 'Desactiva tu suscripción actual antes de elegir otro plan',
+                    'code' => 'ACTIVE_SUBSCRIPTION',
+                ], 409);
             }
 
             // Calcular monto a cobrar
             $amount = $activeSubscription
                 ? $this->calculateUpgradeAmount($activeSubscription, $plan)
                 : $plan['price'];
-
-            // Finalizar suscripción anterior
-            if ($activeSubscription) {
-                $activeSubscription->update([
-                    'ends_at' => now(),
-                    'status'  => 'ended', // opcional: marcar como finalizada
-                ]);
-            }
 
             // Crear nueva suscripción pendiente
             $newSubscription = Subscription::create([

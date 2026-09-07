@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\LocalController;
 use App\Http\Controllers\LocalSchedulesController;
+use App\Http\Controllers\SubscriptionController;
 use Symfony\Component\HttpFoundation\Request;
 
 Route::get('/locales/{localId}/categorias', [CategoriasController::class, 'index']);
@@ -137,6 +138,8 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::delete('/mercadopago/token/{localId}', [MercadoPagoController::class, 'disconnect']);
 
             // Suscripciones (opcional)
+            Route::get('/subscription', [SubscriptionController::class, 'show']);
             Route::post('/subscription', [MercadoPagoController::class, 'iniciarSubscripcion']);
+            Route::post('/subscription/cancel', [SubscriptionController::class, 'cancel']);
             Route::post('/mercadopago/cambiar-plan', [MercadoPagoController::class, 'cambiar']);
 });
