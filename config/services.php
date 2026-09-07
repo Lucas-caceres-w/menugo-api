@@ -36,6 +36,7 @@ return [
     ],
     // config/services.php
     'mercadopago' => [
+        'access_token' => env('MP_ACCESS_TOKEN'),
         'client_id'     => env('MP_CLIENT_ID'),
         'client_secret' => env('MP_CLIENT_SECRET'),
         'redirect_uri'  => env('MP_REDIRECT_URI'),

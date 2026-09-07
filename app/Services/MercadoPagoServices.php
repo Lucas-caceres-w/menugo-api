@@ -48,8 +48,8 @@ class MercadoPagoServices
 
                         $response = Http::asForm()->post('https://api.mercadopago.com/oauth/token', [
                                     'grant_type'    => 'refresh_token',
-                                    'client_id'     => env('MP_CLIENT_ID'),
-                                    'client_secret' => env('MP_CLIENT_SECRET'),
+                                    'client_id'     => config('services.mercadopago.client_id'),
+                                    'client_secret' => config('services.mercadopago.client_secret'),
                                     'refresh_token' => $token->refresh_token,
                         ]);
 
@@ -80,7 +80,7 @@ class MercadoPagoServices
                                                 'access_token'  => $data['access_token'],
                                                 'refresh_token' => $data['refresh_token'] ?? null,
                                                 'expires_at'    => now()->addSeconds($data['expires_in'] ?? 21600),
-                                                'mp_user_id'    => $data['user_id'] ?? null,
+                                                'mercadopago_user_id' => $data['user_id'] ?? null,
                                     ]
                         );
 
@@ -126,7 +126,7 @@ class MercadoPagoServices
                                     }
 
                                     logger()->info('MP back_urls', [
-                                                'success' => env('FRONTEND_URL') . '/pedido/success?id=' . $pedido->id,
+                                                'success' => config('app.frontend_url') . '/pedido/success?id=' . $pedido->id,
                                     ]);
 
 
@@ -153,9 +153,9 @@ class MercadoPagoServices
                                                 'external_reference' => "pedido_{$pedido->id}",
 
                                                 'back_urls' => [
-                                                            'success' => env('FRONTEND_URL') . '/pedido/success?id=' . $pedido->id,
-                                                            'failure' => env('FRONTEND_URL') . '/pedido/failure?id=' . $pedido->id,
-                                                            'pending' => env('FRONTEND_URL') . '/pedido/pending?id=' . $pedido->id,
+                                                            'success' => config('app.frontend_url') . '/pedido/success?id=' . $pedido->id,
+                                                            'failure' => config('app.frontend_url') . '/pedido/failure?id=' . $pedido->id,
+                                                            'pending' => config('app.frontend_url') . '/pedido/pending?id=' . $pedido->id,
                                                 ],
 
                                                 'notification_url' => env('APP_URL') . '/api/mercadopago/webhook',

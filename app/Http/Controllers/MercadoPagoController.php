@@ -97,6 +97,10 @@ class MercadoPagoController extends Controller
             return;
         }
 
+        if ($subscription->transacciones()->where('payment_id', $payment['id'])->exists()) {
+            return;
+        }
+
         $subscription->transacciones()->create([
             'total' => $payment['transaction_amount'],
             'medio_pago' => 'mercadopago',
@@ -190,7 +194,7 @@ class MercadoPagoController extends Controller
         try {
             $preference = $this->mpService->createPreference(
                 $local,
-                $validated['items']
+                $pedido
             );
 
             return response()->json([
@@ -224,11 +228,11 @@ class MercadoPagoController extends Controller
             $response = Http::asForm()->post(
                 'https://api.mercadopago.com/oauth/token',
                 [
-                    'client_id'     => env('MP_CLIENT_ID'),
-                    'client_secret' => env('MP_CLIENT_SECRET'),
+                    'client_id'     => config('services.mercadopago.client_id'),
+                    'client_secret' => config('services.mercadopago.client_secret'),
                     'code'          => $code,
                     'grant_type'    => 'authorization_code',
-                    'redirect_uri'  => env('MP_REDIRECT_URI'),
+                    'redirect_uri'  => config('services.mercadopago.redirect_uri'),
                 ]
             );
 
@@ -281,16 +285,15 @@ class MercadoPagoController extends Controller
                 return response()->json(['message' => 'Pago ya procesado'], 200);
             }
 
-            // 🔑 Obtener token correcto
-            // Si existe transacción, es un pedido → usar token del local
-            if ($transaccion) {
-                $pedido = $transaccion->transaccionable; // relación morph
-                $local = $pedido->local;
-                $token = $this->mpService->getValidAccessToken($local);
-            } else {
-                // Si no existe transacción previa, asumimos suscripción → token de la app
-                $token = env('MP_ACCESS_TOKEN');
-            }
+            // Mercado Pago incluye el usuario vendedor en la notificación.
+            // Los pedidos usan el token OAuth del local; las suscripciones usan el token de plataforma.
+            $localToken = MercadoPagoTokens::query()
+                ->where('mercadopago_user_id', (string) $request->input('user_id'))
+                ->first();
+
+            $token = $localToken
+                ? $this->mpService->getValidAccessToken($localToken->local)
+                : config('services.mercadopago.access_token');
 
             // 🔍 Consultar el pago completo en MercadoPago
             $payment = $this->fetchPaymentByPlatform($paymentId, $token);
@@ -378,6 +381,15 @@ class MercadoPagoController extends Controller
             $planKey = $request->input('plan');
             $plan = config("plans.$planKey");
 
+            if (!config('services.mercadopago.client_id') ||
+                !config('services.mercadopago.client_secret') ||
+                !config('services.mercadopago.access_token')) {
+                return response()->json([
+                    'message' => 'Mercado Pago no está configurado en el servidor',
+                    'code' => 'MP_NOT_CONFIGURED',
+                ], 503);
+            }
+
             if (!$plan) {
                 return response()->json([
                     'message' => 'Plan inválido'
@@ -416,7 +428,7 @@ class MercadoPagoController extends Controller
             ]);
 
             // 🔐 Configurar MercadoPago
-            MercadoPagoConfig::setAccessToken(env('MP_ACCESS_TOKEN'));
+            MercadoPagoConfig::setAccessToken(config('services.mercadopago.access_token'));
             MercadoPagoConfig::setRuntimeEnviroment(
                 app()->environment('production')
                     ? MercadoPagoConfig::SERVER
@@ -447,12 +459,12 @@ class MercadoPagoController extends Controller
                     'charged_amount' => $amount,
                 ],
                 'back_urls' => [
-                    'success' => env('FRONTEND_URL') . '/dashboard/subscription?status=success',
-                    'pending' => env('FRONTEND_URL') . '/dashboard/subscription?status=pending',
-                    'failure' => env('FRONTEND_URL') . '/dashboard/subscription?status=failure',
+                    'success' => config('app.frontend_url') . '/dashboard/subscription?status=success',
+                    'pending' => config('app.frontend_url') . '/dashboard/subscription?status=pending',
+                    'failure' => config('app.frontend_url') . '/dashboard/subscription?status=failure',
                 ],
                 'auto_return' => 'approved',
-                'notification_url' => env('APP_URL') . '/api/mercadopago/webhook',
+                'notification_url' => config('app.url') . '/api/mercadopago/webhook',
             ]);
 
             return response()->json([
