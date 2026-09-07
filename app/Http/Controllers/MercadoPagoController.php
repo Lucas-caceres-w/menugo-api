@@ -16,6 +16,7 @@ use Illuminate\Container\Attributes\Log;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use MercadoPago\Client\PreApproval\PreApprovalClient;
 use MercadoPago\Client\Preference\PreferenceClient;
 use MercadoPago\Exceptions\MPApiException;
 use MercadoPago\MercadoPagoConfig;
@@ -112,6 +113,14 @@ class MercadoPagoController extends Controller
 
         // ✅ Activar solo si está aprobado
         if ($payment['status'] === 'approved') {
+            Subscription::where('user_id', $subscription->user_id)
+                ->where('id', '!=', $subscription->id)
+                ->where('status', 'active')
+                ->update([
+                    'status' => 'ended',
+                    'ends_at' => now(),
+                ]);
+
             $subscription->activate();
         }
     }
@@ -422,11 +431,10 @@ class MercadoPagoController extends Controller
                 ], 400);
             }
 
-            if ($activeSubscription) {
+            if ($activeSubscription && $plan['price'] <= $activeSubscription->price) {
                 return response()->json([
-                    'message' => 'Desactiva tu suscripción actual antes de elegir otro plan',
-                    'code' => 'ACTIVE_SUBSCRIPTION',
-                ], 409);
+                    'message' => 'Solo puedes subir a un plan de mayor valor',
+                ], 400);
             }
 
             // Calcular monto a cobrar
@@ -440,6 +448,7 @@ class MercadoPagoController extends Controller
                 'plan' => $planKey,
                 'status' => 'pending',
                 'price' => $plan['price'],
+                'auto_renew' => $request->boolean('auto_renew'),
             ]);
 
             // 🔐 Configurar MercadoPago
@@ -451,6 +460,32 @@ class MercadoPagoController extends Controller
             );
 
             $client = new PreferenceClient();
+
+            if ($request->boolean('auto_renew')) {
+                $preApproval = (new PreApprovalClient())->create([
+                    'reason' => "Plan {$planKey} de MenuGo",
+                    'external_reference' => "subscription_{$newSubscription->id}_{$planKey}",
+                    'payer_email' => $user->email,
+                    'back_url' => config('app.frontend_url') . '/dashboard/subscription?status=success',
+                    'status' => 'pending',
+                    'auto_recurring' => [
+                        'frequency' => 1,
+                        'frequency_type' => 'months',
+                        'transaction_amount' => (float) $plan['price'],
+                        'currency_id' => 'ARS',
+                    ],
+                    'notification_url' => config('services.mercadopago.webhook_url')
+                        ?: rtrim(config('app.url'), '/') . '/api/mercadopago/webhook',
+                ]);
+
+                $newSubscription->update([
+                    'preapproval_id' => $preApproval->id,
+                ]);
+
+                return response()->json([
+                    'checkout_url' => $preApproval->init_point,
+                ]);
+            }
 
             $preference = $client->create([
                 'items' => [[

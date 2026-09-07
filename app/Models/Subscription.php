@@ -15,11 +15,16 @@ class Subscription extends Model
         'price',
         'currency',
         'status',
+        'auto_renew',
+        'preapproval_id',
+        'renewal_notified_at',
     ];
 
     protected $casts = [
         'starts_at' => 'datetime',
         'ends_at' => 'datetime',
+        'auto_renew' => 'boolean',
+        'renewal_notified_at' => 'datetime',
     ];
 
     public function user()
