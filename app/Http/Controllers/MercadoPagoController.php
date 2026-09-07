@@ -295,6 +295,11 @@ class MercadoPagoController extends Controller
                 ? $this->mpService->getValidAccessToken($localToken->local)
                 : config('services.mercadopago.access_token');
 
+            logger('[MP WEBHOOK] Token seleccionado', [
+                'source' => $localToken ? 'local_oauth' : 'platform',
+                'mp_user_id' => $request->input('user_id'),
+            ]);
+
             // 🔍 Consultar el pago completo en MercadoPago
             $payment = $this->fetchPaymentByPlatform($paymentId, $token);
 
@@ -316,6 +321,18 @@ class MercadoPagoController extends Controller
 
             DB::commit();
             return response()->json(['message' => 'Webhook procesado']);
+        } catch (MPApiException $e) {
+            DB::rollBack();
+
+            $apiResponse = $e->getApiResponse();
+            logger('[MP WEBHOOK API ERROR]', [
+                'payment_id' => $paymentId,
+                'status' => $apiResponse?->getStatusCode(),
+                'body' => $apiResponse?->getContent(),
+            ]);
+
+            report($e);
+            return response()->json(['message' => 'Mercado Pago rechazó la consulta del pago'], 502);
         } catch (\Throwable $e) {
             DB::rollBack();
             logger('[MP WEBHOOK ERROR]', ['error' => $e->getMessage(), 'payment_id' => $paymentId]);
@@ -464,7 +481,8 @@ class MercadoPagoController extends Controller
                     'failure' => config('app.frontend_url') . '/dashboard/subscription?status=failure',
                 ],
                 'auto_return' => 'approved',
-                'notification_url' => rtrim(config('app.url'), '/') . '/api/mercadopago/webhook',
+                'notification_url' => config('services.mercadopago.webhook_url')
+                    ?: rtrim(config('app.url'), '/') . '/api/mercadopago/webhook',
             ]);
 
             return response()->json([
