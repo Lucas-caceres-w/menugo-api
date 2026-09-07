@@ -464,7 +464,7 @@ class MercadoPagoController extends Controller
                     'failure' => config('app.frontend_url') . '/dashboard/subscription?status=failure',
                 ],
                 'auto_return' => 'approved',
-                'notification_url' => config('app.url') . '/api/mercadopago/webhook',
+                'notification_url' => rtrim(config('app.url'), '/') . '/api/mercadopago/webhook',
             ]);
 
             return response()->json([
