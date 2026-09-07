@@ -15,15 +15,12 @@ class Subscription extends Model
         'price',
         'currency',
         'status',
-        'auto_renew',
-        'preapproval_id',
         'renewal_notified_at',
     ];
 
     protected $casts = [
         'starts_at' => 'datetime',
         'ends_at' => 'datetime',
-        'auto_renew' => 'boolean',
         'renewal_notified_at' => 'datetime',
     ];
 
@@ -38,6 +35,18 @@ class Subscription extends Model
         return
             $this->status === 'active' &&
             (!$this->ends_at || now()->lte($this->ends_at));
+    }
+
+    public function isRenewalAvailable(): bool
+    {
+        if (!$this->ends_at || $this->status !== 'active') {
+            return false;
+        }
+
+        return now()->between(
+            $this->ends_at->copy()->subDays(3),
+            $this->ends_at->copy()->addDays(3),
+        );
     }
 
     public function activatePlan(User $user, string $planKey): void

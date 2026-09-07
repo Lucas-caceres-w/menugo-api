@@ -134,13 +134,12 @@ Route::middleware('auth:sanctum')->group(function () {
             // MercadoPago - vincular, refrescar token, preferencias
             Route::post('/mercadopago/oauth', [MercadoPagoController::class, 'oauth']);
             Route::post('/mercadopago/preference', [MercadoPagoController::class, 'createPreference']);
-            Route::post('/mercadopago/save-preapproval', [MercadoPagoController::class, 'savePreapproval']);
             Route::delete('/mercadopago/token/{localId}', [MercadoPagoController::class, 'disconnect']);
 
             // Suscripciones (opcional)
             Route::get('/subscription', [SubscriptionController::class, 'show']);
             Route::get('/subscription/current', [SubscriptionController::class, 'show']);
-            Route::post('/subscription/auto-renew', [SubscriptionController::class, 'toggleAutoRenew']);
             Route::post('/subscription', [MercadoPagoController::class, 'iniciarSubscripcion']);
+            Route::post('/subscription/renew', [MercadoPagoController::class, 'renewSubscription']);
             Route::post('/mercadopago/cambiar-plan', [MercadoPagoController::class, 'cambiar']);
 });

@@ -2,11 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Resources\SubscriptionResource;
 use App\Models\Subscription;
 use Illuminate\Http\Request;
-use MercadoPago\Client\PreApproval\PreApprovalClient;
-use MercadoPago\MercadoPagoConfig;
 
 class SubscriptionController extends Controller
 {
@@ -39,72 +36,27 @@ class SubscriptionController extends Controller
      */
     public function show(Request $request)
     {
-        $subscription = $request->user()->activeSubscription();
+        $subscription = $request->user()->activeSubscription()
+            ?: $request->user()->subscription()
+                ->where('status', '!=', 'pending')
+                ->latest('id')
+                ->first();
 
-        if (! $subscription) {
+        if (! $subscription || (!$subscription->isActive() && !$subscription->isRenewalAvailable())) {
             return response()->json([
                 'message' => 'No tienes una suscripción activa',
             ], 404);
         }
 
+        $status = $subscription->isActive()
+            ? ($subscription->isRenewalAvailable() ? 'renewal_due' : 'active')
+            : 'grace';
+
         return response()->json([
             'plan' => $subscription->plan,
-            'auto_renew' => (bool) $subscription->auto_renew,
+            'status' => $status,
+            'renewal_available' => $subscription->isRenewalAvailable(),
             'ends_at' => $subscription->ends_at,
-        ]);
-    }
-
-    public function toggleAutoRenew(Request $request)
-    {
-        $enabled = $request->boolean('enabled');
-        $subscription = $request->user()->activeSubscription();
-
-        if (! $subscription) {
-            return response()->json(['message' => 'No tienes una suscripción activa'], 404);
-        }
-
-        MercadoPagoConfig::setAccessToken(config('services.mercadopago.access_token'));
-        $client = new PreApprovalClient();
-
-        if (! $enabled) {
-            if ($subscription->preapproval_id) {
-                $client->update($subscription->preapproval_id, ['status' => 'cancelled']);
-            }
-
-            $subscription->update([
-                'auto_renew' => false,
-                'preapproval_id' => null,
-            ]);
-
-            return response()->json(['auto_renew' => false]);
-        }
-
-        if ($subscription->preapproval_id) {
-            return response()->json(['auto_renew' => true]);
-        }
-
-        $preApproval = $client->create([
-            'reason' => "Renovación del plan {$subscription->plan} de MenuGo",
-            'external_reference' => "subscription_{$subscription->id}_{$subscription->plan}",
-            'payer_email' => $request->user()->email,
-            'back_url' => config('app.frontend_url') . '/dashboard/subscription?status=success',
-            'status' => 'pending',
-            'auto_recurring' => [
-                'frequency' => 1,
-                'frequency_type' => 'months',
-                'transaction_amount' => (float) $subscription->price,
-                'currency_id' => $subscription->currency ?: 'ARS',
-            ],
-        ]);
-
-        $subscription->update([
-            'auto_renew' => true,
-            'preapproval_id' => $preApproval->id,
-        ]);
-
-        return response()->json([
-            'auto_renew' => true,
-            'checkout_url' => $preApproval->init_point,
         ]);
     }
 

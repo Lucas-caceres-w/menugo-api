@@ -16,7 +16,6 @@ use Illuminate\Container\Attributes\Log;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
-use MercadoPago\Client\PreApproval\PreApprovalClient;
 use MercadoPago\Client\Preference\PreferenceClient;
 use MercadoPago\Exceptions\MPApiException;
 use MercadoPago\MercadoPagoConfig;
@@ -448,7 +447,6 @@ class MercadoPagoController extends Controller
                 'plan' => $planKey,
                 'status' => 'pending',
                 'price' => $plan['price'],
-                'auto_renew' => $request->boolean('auto_renew'),
             ]);
 
             // 🔐 Configurar MercadoPago
@@ -460,32 +458,6 @@ class MercadoPagoController extends Controller
             );
 
             $client = new PreferenceClient();
-
-            if ($request->boolean('auto_renew')) {
-                $preApproval = (new PreApprovalClient())->create([
-                    'reason' => "Plan {$planKey} de MenuGo",
-                    'external_reference' => "subscription_{$newSubscription->id}_{$planKey}",
-                    'payer_email' => $user->email,
-                    'back_url' => config('app.frontend_url') . '/dashboard/subscription?status=success',
-                    'status' => 'pending',
-                    'auto_recurring' => [
-                        'frequency' => 1,
-                        'frequency_type' => 'months',
-                        'transaction_amount' => (float) $plan['price'],
-                        'currency_id' => 'ARS',
-                    ],
-                    'notification_url' => config('services.mercadopago.webhook_url')
-                        ?: rtrim(config('app.url'), '/') . '/api/mercadopago/webhook',
-                ]);
-
-                $newSubscription->update([
-                    'preapproval_id' => $preApproval->id,
-                ]);
-
-                return response()->json([
-                    'checkout_url' => $preApproval->init_point,
-                ]);
-            }
 
             $preference = $client->create([
                 'items' => [[
@@ -541,6 +513,74 @@ class MercadoPagoController extends Controller
                 'message' => 'Error interno del servidor',
                 'code' => 'INTERNAL_ERROR'
             ], 500);
+        }
+    }
+
+    public function renewSubscription(Request $request)
+    {
+        $subscription = $request->user()->activeSubscription()
+            ?: $request->user()->subscription()
+                ->where('status', '!=', 'pending')
+                ->latest('id')
+                ->first();
+
+        if (!$subscription || !$subscription->isRenewalAvailable()) {
+            return response()->json([
+                'message' => 'La renovación estará disponible tres días antes del vencimiento y durante los tres días posteriores',
+            ], 409);
+        }
+
+        $plan = config("plans.{$subscription->plan}");
+        if (!$plan) {
+            return response()->json(['message' => 'Plan inválido'], 400);
+        }
+
+        $newSubscription = Subscription::create([
+            'user_id' => $request->user()->id,
+            'plan' => $subscription->plan,
+            'status' => 'pending',
+            'price' => $plan['price'],
+            'currency' => 'ARS',
+        ]);
+
+        MercadoPagoConfig::setAccessToken(config('services.mercadopago.access_token'));
+        MercadoPagoConfig::setRuntimeEnviroment(
+            app()->environment('production')
+                ? MercadoPagoConfig::SERVER
+                : MercadoPagoConfig::LOCAL
+        );
+
+        try {
+            $preference = (new PreferenceClient())->create([
+                'items' => [[
+                    'title' => "Renovación del plan {$subscription->plan}",
+                    'quantity' => 1,
+                    'unit_price' => (float) $plan['price'],
+                    'currency_id' => 'ARS',
+                ]],
+                'payer' => [
+                    'name' => $request->user()->name,
+                    'email' => $request->user()->email,
+                ],
+                'external_reference' => "subscription_{$newSubscription->id}_{$subscription->plan}",
+                'back_urls' => [
+                    'success' => config('app.frontend_url') . '/dashboard/subscription?status=success',
+                    'pending' => config('app.frontend_url') . '/dashboard/subscription?status=pending',
+                    'failure' => config('app.frontend_url') . '/dashboard/subscription?status=failure',
+                ],
+                'auto_return' => 'approved',
+                'notification_url' => config('services.mercadopago.webhook_url')
+                    ?: rtrim(config('app.url'), '/') . '/api/mercadopago/webhook',
+            ]);
+
+            return response()->json(['checkout_url' => $preference->init_point]);
+        } catch (\Throwable $e) {
+            $newSubscription->delete();
+            report($e);
+
+            return response()->json([
+                'message' => 'No se pudo crear el checkout de renovación',
+            ], 502);
         }
     }
 }

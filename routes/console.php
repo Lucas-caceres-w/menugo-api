@@ -24,6 +24,6 @@ app(Schedule::class)->call(function (): void {
     Subscription::query()
         ->where('status', 'active')
         ->whereNotNull('ends_at')
-        ->where('ends_at', '<', now())
+        ->where('ends_at', '<', now()->subDays(3))
         ->update(['status' => 'expired']);
 })->dailyAt('03:00');

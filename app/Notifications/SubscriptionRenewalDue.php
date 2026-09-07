@@ -25,10 +25,8 @@ class SubscriptionRenewalDue extends Notification
         return (new MailMessage)
             ->subject('Tu plan de MenuGo está por finalizar')
             ->greeting("Hola {$notifiable->name}")
-            ->line("Tu plan {$this->subscription->plan} finaliza el {$this->subscription->ends_at?->format('d/m/Y')}.")
-            ->line($this->subscription->auto_renew
-                ? 'La renovación automática está autorizada y Mercado Pago procesará el próximo cobro.'
-                : 'No tienes renovación automática autorizada. Renueva tu plan desde MenuGo antes de esa fecha.')
+            ->line("Tu plan {$this->subscription->plan} finaliza el {$this->subscription->ends_at?->format('d/m/Y')}. Tendrás tres días adicionales para renovarlo.")
+            ->line('Renueva tu plan desde MenuGo cuando finalice para continuar utilizando el servicio.')
             ->action('Ver mi suscripción', config('app.frontend_url') . '/dashboard/subscription');
     }
 }
