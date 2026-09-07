@@ -139,6 +139,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
             // Suscripciones (opcional)
             Route::get('/subscription', [SubscriptionController::class, 'show']);
+            Route::get('/subscription/current', [SubscriptionController::class, 'show']);
             Route::post('/subscription', [MercadoPagoController::class, 'iniciarSubscripcion']);
             Route::post('/subscription/cancel', [SubscriptionController::class, 'cancel']);
             Route::post('/mercadopago/cambiar-plan', [MercadoPagoController::class, 'cambiar']);
